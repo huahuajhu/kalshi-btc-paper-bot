@@ -45,7 +45,7 @@ class MarketSelector:
         Calculate metrics for a specific market (strike).
         
         Metrics include:
-        - Spread: Avg difference between YES + NO prices and 1.0
+        - Spread: Absolute deviation of YES + NO prices from 1.0, averaged over the hour
         - Volume proxy: Count of price changes (more changes = more trading activity)
         - Price reaction: Correlation between BTC price changes and contract price changes
         

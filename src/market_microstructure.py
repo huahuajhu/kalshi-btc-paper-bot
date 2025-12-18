@@ -142,54 +142,6 @@ class MarketMicrostructure:
         current = self.liquidity_consumed.get(timestamp, 0.0)
         self.liquidity_consumed[timestamp] = current + quantity
     
-    def add_pending_order(self,
-                         decision_time: pd.Timestamp,
-                         action: str,
-                         quantity: float,
-                         target_price: float):
-        """
-        Add a pending order that will execute after latency delay.
-        
-        Args:
-            decision_time: When the decision was made
-            action: "BUY_YES" or "BUY_NO"
-            quantity: Number of contracts
-            target_price: Price at decision time
-        """
-        self.pending_orders.append({
-            'decision_time': decision_time,
-            'action': action,
-            'quantity': quantity,
-            'target_price': target_price
-        })
-    
-    def get_executable_orders(self, current_time: pd.Timestamp) -> list:
-        """
-        Get orders that are ready to execute (past latency delay).
-        
-        Args:
-            current_time: Current timestamp
-            
-        Returns:
-            List of orders ready to execute
-        """
-        executable = []
-        remaining = []
-        
-        for order in self.pending_orders:
-            # Calculate time difference in minutes
-            time_diff = (current_time - order['decision_time']).total_seconds() / 60
-            
-            if time_diff >= self.latency_minutes:
-                executable.append(order)
-            else:
-                remaining.append(order)
-        
-        # Update pending orders list
-        self.pending_orders = remaining
-        
-        return executable
-    
     def execute_trade(self,
                      timestamp: pd.Timestamp,
                      mid_price: float,

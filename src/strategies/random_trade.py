@@ -67,7 +67,7 @@ class RandomStrategy(Strategy):
         action_choice = self.rng.choice([TradeAction.BUY_YES, TradeAction.BUY_NO, TradeAction.HOLD])
         
         if action_choice == TradeAction.HOLD:
-            self.has_traded = True  # For HOLD, mark as traded to avoid retry
+            # Don't set has_traded for HOLD - allow retry on subsequent minutes
             return TradeAction.HOLD, None
         
         # Calculate quantity

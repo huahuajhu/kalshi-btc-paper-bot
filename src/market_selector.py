@@ -108,7 +108,8 @@ class MarketSelector:
                 
                 # Calculate correlation (higher absolute correlation = more reactive)
                 if btc_changes.std() > 0 and yes_changes_aligned.std() > 0:
-                    price_reaction = abs(btc_changes.corr(yes_changes_aligned))
+                    corr_value = btc_changes.corr(yes_changes_aligned)
+                    price_reaction = 0.0 if pd.isna(corr_value) else abs(corr_value)
                 else:
                     price_reaction = 0.0
         

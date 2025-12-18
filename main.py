@@ -35,6 +35,11 @@ def main():
         market_duration_minutes=60,
         min_trade_price=0.01,
         max_trade_price=0.99,
+        # Market microstructure parameters (Phase 4)
+        bid_ask_spread=0.02,  # 2 cent spread
+        slippage_per_100_contracts=0.01,  # 1 cent per 100 contracts
+        max_liquidity_per_minute=500.0,  # Max 500 contracts per minute
+        latency_minutes=1,  # 1 minute delay
         btc_prices_path="data/btc_prices_minute.csv",
         markets_path="data/kalshi_markets.csv",
         contract_prices_path="data/kalshi_contract_prices.csv"
@@ -45,6 +50,11 @@ def main():
     print(f"  Max Position %: {config.max_position_pct * 100}%")
     print(f"  BTC Price Interval: ${config.btc_price_interval}")
     print(f"  Fee per Contract: ${config.fee_per_contract}")
+    print(f"\n  Market Microstructure (Phase 4):")
+    print(f"  Bid-Ask Spread: ${config.bid_ask_spread:.3f}")
+    print(f"  Slippage per 100 contracts: ${config.slippage_per_100_contracts:.3f}")
+    print(f"  Max Liquidity per Minute: {config.max_liquidity_per_minute:.0f} contracts")
+    print(f"  Latency Delay: {config.latency_minutes} minute(s)")
     
     # Initialize simulator
     simulator = Simulator(config)

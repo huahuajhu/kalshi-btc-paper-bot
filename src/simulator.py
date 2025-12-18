@@ -95,6 +95,9 @@ class Simulator:
         results['final_balance'] = portfolio.cash
         results['total_pnl'] = portfolio.get_total_pnl()
         
+        # Add market selection summary
+        results['market_selection_summary'] = self.market_selector.get_selection_summary()
+        
         return results
     
     def _simulate_hour(self,
@@ -117,7 +120,9 @@ class Simulator:
         market = self.market_selector.get_market_for_hour(
             hour_start=hour_start,
             btc_prices_df=btc_prices,
-            markets_df=markets
+            markets_df=markets,
+            contract_prices_df=contract_prices,
+            use_intelligent_selection=True
         )
         
         if not market:

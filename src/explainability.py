@@ -14,6 +14,19 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass
 from collections import defaultdict
 
+# Constants for analysis thresholds
+FAIR_VALUE_PRICE = 0.5  # Fair value for binary contracts
+EXPENSIVE_ENTRY_THRESHOLD = 0.7  # Price above which entry is considered expensive
+ABOVE_FAIR_VALUE_THRESHOLD = 0.5  # Threshold for above fair value entry
+
+# BTC price movement thresholds for failure classification
+LARGE_MISS_THRESHOLD = 500  # USD distance from strike for "large miss"
+MEDIUM_MISS_THRESHOLD = 100  # USD distance from strike for "medium miss"
+
+# Display constants
+BAR_CHART_LENGTH = 30  # Character length for visual bar charts
+EPSILON = 1e-6  # Small value for numerical stability
+
 
 @dataclass
 class TradeAttribution:
@@ -131,7 +144,7 @@ class ExplainabilityEngine:
         # Position sizing discipline
         if len(pnl_df) > 0 and 'quantity' in pnl_df.columns:
             # Consistent position sizing is important
-            quantity_variance = pnl_df['quantity'].std() / (pnl_df['quantity'].mean() + 1e-6)
+            quantity_variance = pnl_df['quantity'].std() / (pnl_df['quantity'].mean() + EPSILON)
             # Lower variance is better (more disciplined)
             importance['position_sizing_discipline'] = 1.0 / (1.0 + quantity_variance)
         else:
@@ -174,14 +187,22 @@ class ExplainabilityEngine:
         max_potential_gain = (1.0 - entry_price) * trade['quantity']
         max_potential_loss = entry_price * trade['quantity']
         
-        # Entry quality: how much better than fair (0.5)
-        if payout > 0:  # Winning trade
+        # Entry quality: how much better than fair value
+        # Avoid division by zero if entry_price equals FAIR_VALUE_PRICE
+        if abs(entry_price - FAIR_VALUE_PRICE) < EPSILON:
+            # Entry at fair value has neutral quality
+            entry_quality = 0.0
+        elif payout > 0:  # Winning trade
             # Good entry = low price for winning position
-            entry_quality = (0.5 - entry_price) / 0.5  # Range: -1 to 1
-            entry_pnl = entry_quality * abs(pnl)
+            entry_quality = (FAIR_VALUE_PRICE - entry_price) / FAIR_VALUE_PRICE  # Range: -1 to 1
         else:  # Losing trade
             # Bad entry = high price for losing position
-            entry_quality = (entry_price - 0.5) / 0.5  # Range: -1 to 1
+            entry_quality = (entry_price - FAIR_VALUE_PRICE) / FAIR_VALUE_PRICE  # Range: -1 to 1
+        
+        # Calculate entry PnL based on quality
+        if payout > 0:
+            entry_pnl = entry_quality * abs(pnl)
+        else:
             entry_pnl = -entry_quality * abs(pnl)
         
         # Drift PnL: N/A for binary markets (no intra-trade price changes captured)
@@ -308,9 +329,9 @@ class ExplainabilityEngine:
                 # YES lost, meaning BTC < strike
                 if final_btc < strike:
                     distance = abs(final_btc - strike)
-                    if distance > 500:
+                    if distance > LARGE_MISS_THRESHOLD:
                         return "Wrong direction (large miss)"
-                    elif distance > 100:
+                    elif distance > MEDIUM_MISS_THRESHOLD:
                         return "Wrong direction (medium miss)"
                     else:
                         return "Wrong direction (close call)"
@@ -318,17 +339,17 @@ class ExplainabilityEngine:
                 # NO lost, meaning BTC >= strike
                 if final_btc >= strike:
                     distance = abs(final_btc - strike)
-                    if distance > 500:
+                    if distance > LARGE_MISS_THRESHOLD:
                         return "Wrong direction (large miss)"
-                    elif distance > 100:
+                    elif distance > MEDIUM_MISS_THRESHOLD:
                         return "Wrong direction (medium miss)"
                     else:
                         return "Wrong direction (close call)"
         
         # Price-based classification
-        if entry_price > 0.7:
+        if entry_price > EXPENSIVE_ENTRY_THRESHOLD:
             return "Expensive entry (low reward/risk)"
-        elif entry_price > 0.5:
+        elif entry_price > ABOVE_FAIR_VALUE_THRESHOLD:
             return "Above fair value entry"
         else:
             return "Market moved against position"
@@ -459,8 +480,8 @@ class ExplainabilityEngine:
             sorted_features = sorted(feature_importance.items(), 
                                    key=lambda x: x[1], reverse=True)
             for feature, importance in sorted_features:
-                bar_length = int(importance * 30)
-                bar = '█' * bar_length + '░' * (30 - bar_length)
+                bar_length = int(importance * BAR_CHART_LENGTH)
+                bar = '█' * bar_length + '░' * (BAR_CHART_LENGTH - bar_length)
                 report_lines.append(f"   {feature:30s} {bar} {importance:.2%}")
         else:
             report_lines.append(f"   No trades to analyze")

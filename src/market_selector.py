@@ -145,8 +145,11 @@ class MarketSelector:
         if len(returns) == 0:
             return 0.02
         
-        # Return standard deviation of returns
-        return returns.std()
+        # Return standard deviation of returns, falling back to default if NaN
+        volatility = returns.std()
+        if pd.isna(volatility):
+            return 0.02
+        return float(volatility)
     
     def select_intelligent_strike(self,
                                   hour_start: pd.Timestamp,

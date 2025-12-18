@@ -89,6 +89,7 @@ class Portfolio:
         # Record trade
         self.trade_history.append({
             'timestamp': timestamp,
+            'entry_timestamp': timestamp,
             'action': 'BUY_YES',
             'quantity': quantity,
             'price': price,
@@ -135,6 +136,7 @@ class Portfolio:
         # Record trade
         self.trade_history.append({
             'timestamp': timestamp,
+            'entry_timestamp': timestamp,
             'action': 'BUY_NO',
             'quantity': quantity,
             'price': price,
@@ -182,6 +184,8 @@ class Portfolio:
             # Record resolution
             self.pnl_history.append({
                 'timestamp': resolution_time,
+                'exit_timestamp': resolution_time,
+                'entry_timestamp': position.entry_time,
                 'contract_type': position.contract_type,
                 'quantity': position.quantity,
                 'entry_price': position.entry_price,

@@ -1,7 +1,6 @@
 """Portfolio management for tracking positions and PnL."""
 
 from dataclasses import dataclass
-from typing import Optional
 import pandas as pd
 
 

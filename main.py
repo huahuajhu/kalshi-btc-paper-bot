@@ -12,6 +12,10 @@ from src.simulator import Simulator
 from src.strategies.no_trade import NoTradeStrategy
 from src.strategies.momentum import MomentumStrategy
 from src.strategies.mean_reversion import MeanReversionStrategy
+from src.strategies.opening_auction import OpeningAuctionStrategy
+from src.strategies.trend_continuation import TrendContinuationStrategy
+from src.strategies.volatility_compression import VolatilityCompressionStrategy
+from src.strategies.no_trade_filter import NoTradeFilterStrategy
 from src.metrics import MetricsCalculator
 
 
@@ -49,7 +53,11 @@ def main():
     strategies = [
         NoTradeStrategy(),
         MomentumStrategy(lookback_minutes=3, max_position_pct=config.max_position_pct),
-        MeanReversionStrategy(window_minutes=10, threshold=0.05, max_position_pct=config.max_position_pct)
+        MeanReversionStrategy(window_minutes=10, threshold=0.05, max_position_pct=config.max_position_pct),
+        OpeningAuctionStrategy(opening_window_minutes=10, min_price_increase=0.02, max_position_pct=config.max_position_pct),
+        TrendContinuationStrategy(confirmation_minutes=15, min_trend_strength=0.05, max_position_pct=config.max_position_pct),
+        VolatilityCompressionStrategy(compression_window=20, compression_threshold=0.02, breakout_threshold=0.03, max_position_pct=config.max_position_pct),
+        NoTradeFilterStrategy(min_btc_volatility=50.0, max_spread=0.10, lookback_minutes=30, max_position_pct=config.max_position_pct)
     ]
     
     # Run simulations
@@ -88,6 +96,17 @@ def main():
         comparison = MetricsCalculator.create_comparison_table(all_results)
         print(comparison.to_string(index=False))
         print()
+        
+        # Print strategy leaderboard
+        MetricsCalculator.print_strategy_leaderboard(all_results)
+        
+        # Print hour-by-hour breakdown for top strategy (highest PnL)
+        if len(all_results) > 0:
+            # Sort by total PnL to find top strategy
+            sorted_results = sorted(all_results, key=lambda x: x['total_pnl'], reverse=True)
+            top_strategy = sorted_results[0]
+            print(f"\nShowing hourly breakdown for top strategy: {top_strategy['strategy_name']}")
+            MetricsCalculator.print_hourly_breakdown(top_strategy, max_rows=20)
     
     print("\nMarket selection log saved to: data/market_selection_log.csv")
     print("\nSimulation complete!")

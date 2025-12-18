@@ -147,12 +147,16 @@ kalshi-btc-paper-bot/
 │   ├── contract_pricing.py       # YES/NO price simulation
 │   ├── portfolio.py              # Position & PnL tracking
 │   ├── simulator.py              # Main simulation engine
-│   ├── metrics.py                # Performance metrics
+│   ├── metrics.py                # Performance metrics & leaderboard
 │   └── strategies/               # Trading strategies
 │       ├── base.py              # Abstract strategy class
 │       ├── momentum.py          # Momentum strategy
 │       ├── mean_reversion.py   # Mean reversion strategy
-│       └── no_trade.py         # Baseline (no trades)
+│       ├── no_trade.py         # Baseline (no trades)
+│       ├── opening_auction.py  # Opening auction strategy
+│       ├── trend_continuation.py # Trend continuation strategy
+│       ├── volatility_compression.py # Volatility compression strategy
+│       └── no_trade_filter.py  # No-trade filter strategy
 │
 ├── notebooks/                     # Analysis notebooks
 │   └── analysis.ipynb            # Performance analysis
@@ -188,6 +192,54 @@ kalshi-btc-paper-bot/
 - **Parameters**:
   - `window_minutes`: Rolling window size (default: 10)
   - `threshold`: Deviation threshold (default: 0.05)
+  - `max_position_pct`: Max % of portfolio per trade (default: 10%)
+
+### 4. Opening Auction
+- **Description**: Trade during the first 5-10 minutes of each hour
+- **Rules**:
+  - Only trade within opening window (first 5-10 minutes)
+  - Buy YES if YES price is rising in the opening
+  - Buy NO if NO price is rising in the opening
+  - Hold position until resolution
+- **Parameters**:
+  - `opening_window_minutes`: Opening window duration (default: 10)
+  - `min_price_increase`: Minimum price increase to trigger (default: 0.02)
+  - `max_position_pct`: Max % of portfolio per trade (default: 10%)
+
+### 5. Trend Continuation
+- **Description**: Trade after momentum confirmation
+- **Rules**:
+  - Wait for clear trend to establish (price moving in one direction)
+  - Confirm momentum with trend strength calculation
+  - Enter in direction of confirmed trend
+  - Only take one position per hour
+- **Parameters**:
+  - `confirmation_minutes`: Minutes to observe before confirming (default: 15)
+  - `min_trend_strength`: Minimum trend strength to confirm (default: 0.05)
+  - `max_position_pct`: Max % of portfolio per trade (default: 10%)
+
+### 6. Volatility Compression
+- **Description**: Fade breakouts after stagnation
+- **Rules**:
+  - Detect periods of low volatility (price compression)
+  - When price breaks out after compression, fade the move
+  - Assumption: Breakouts after stagnation often reverse
+- **Parameters**:
+  - `compression_window`: Minutes to check for compression (default: 20)
+  - `compression_threshold`: Max range for compression (default: 0.02)
+  - `breakout_threshold`: Min move to consider breakout (default: 0.03)
+  - `max_position_pct`: Max % of portfolio per trade (default: 10%)
+
+### 7. No-Trade Filter
+- **Description**: Skip low BTC movement or wide spreads
+- **Rules**:
+  - Skip hours with low BTC volatility
+  - Skip when YES/NO spreads are too wide (poor liquidity)
+  - Uses simple momentum when conditions are favorable
+- **Parameters**:
+  - `min_btc_volatility`: Minimum BTC price range required (default: $50)
+  - `max_spread`: Maximum acceptable YES+NO spread (default: 0.10)
+  - `lookback_minutes`: Minutes to check volatility (default: 30)
   - `max_position_pct`: Max % of portfolio per trade (default: 10%)
 
 ## Configuration
@@ -245,17 +297,35 @@ The simulator calculates:
 - **Avg Trade PnL**: Average profit/loss per trade
 - **Max Drawdown**: Maximum peak-to-trough decline
 - **Total Trades**: Number of trades executed
+- **Hour-by-Hour PnL**: Breakdown of performance by trading hour
+- **Strategy Leaderboard**: Ranked comparison of all strategies
 
 ## Example Output
 
 ```
-============================================================
-Strategy Comparison
-============================================================
-strategy_name  total_pnl  return_pct  final_balance  total_trades  wins  losses  win_rate
-MeanReversion   40529.57      405.30       50529.57            45    16      29     35.56
-      NoTrade       0.00        0.00       10000.00             0     0       0      0.00
-     Momentum       0.00        0.00       10000.00             0     0       0      0.00
+====================================================================================================
+STRATEGY LEADERBOARD
+====================================================================================================
+ rank         strategy_name total_pnl return_pct final_balance  total_trades  wins  losses win_rate avg_trade_pnl max_drawdown  num_hours
+    1        OpeningAuction   $979.62      9.80%     $10979.62             3     3       0  100.00%       $326.54        0.00%          3
+    2 VolatilityCompression    $98.82      0.99%     $10098.82             1     1       0  100.00%        $98.82        0.00%          3
+    3     TrendContinuation    $30.33      0.30%     $10030.33             3     3       0  100.00%        $10.11        0.00%          3
+    4         NoTradeFilter    $30.33      0.30%     $10030.33             3     3       0  100.00%        $10.11        0.00%          3
+    5               NoTrade     $0.00      0.00%     $10000.00             0     0       0    0.00%         $0.00        0.00%          3
+    6              Momentum     $0.00      0.00%     $10000.00             0     0       0    0.00%         $0.00        0.00%          3
+    7         MeanReversion $-1819.55    -18.20%      $8180.45             3     1       2   33.33%      $-606.52       19.00%          3
+====================================================================================================
+
+Showing hourly breakdown for top strategy: OpeningAuction
+
+================================================================================
+Hour-by-Hour PnL Breakdown - OpeningAuction
+================================================================================
+      hour_start            hour_end  strike_price  trades     pnl portfolio_value cumulative_pnl
+2025-01-01 13:00 2025-01-01 14:00:00         86500       1  $10.10       $10010.10         $10.10
+2025-01-01 14:00 2025-01-01 15:00:00         86750       1 $924.00       $10934.10        $934.10
+2025-01-01 15:00 2025-01-01 16:00:00         87250       1  $45.52       $10979.62        $979.62
+================================================================================
 ```
 
 ## Development

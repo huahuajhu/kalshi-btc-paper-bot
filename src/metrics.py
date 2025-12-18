@@ -167,3 +167,106 @@ class MetricsCalculator:
         print(f"Max Drawdown:       {metrics['max_drawdown']:.2f}%")
         print(f"Hours Traded:       {metrics['num_hours']}")
         print(f"{'='*60}\n")
+    
+    @staticmethod
+    def create_hourly_pnl_breakdown(results: Dict) -> pd.DataFrame:
+        """
+        Create hour-by-hour PnL breakdown.
+        
+        Args:
+            results: Results dictionary from simulator
+            
+        Returns:
+            DataFrame with hourly PnL breakdown
+        """
+        hours = results['hours_traded']
+        
+        if not hours:
+            return pd.DataFrame()
+        
+        hourly_data = []
+        for hour in hours:
+            hourly_data.append({
+                'hour_start': hour['hour_start'],
+                'hour_end': hour['hour_end'],
+                'strike_price': hour['strike_price'],
+                'spot_start': hour['spot_price_start'],
+                'spot_end': hour['final_btc_price'],
+                'trades': hour['trades_executed'],
+                'pnl': hour['hour_pnl'],
+                'portfolio_value': hour['portfolio_value']
+            })
+        
+        df = pd.DataFrame(hourly_data)
+        
+        # Add cumulative PnL
+        if not df.empty:
+            df['cumulative_pnl'] = df['pnl'].cumsum()
+        
+        return df
+    
+    @staticmethod
+    def print_hourly_breakdown(results: Dict, max_rows: int = 10) -> None:
+        """
+        Print hour-by-hour PnL breakdown.
+        
+        Args:
+            results: Results dictionary from simulator
+            max_rows: Maximum number of rows to display (default: 10)
+        """
+        df = MetricsCalculator.create_hourly_pnl_breakdown(results)
+        
+        if df.empty:
+            print("No hourly data available")
+            return
+        
+        print(f"\n{'='*80}")
+        print(f"Hour-by-Hour PnL Breakdown - {results['strategy_name']}")
+        print(f"{'='*80}")
+        
+        # Format for display
+        display_df = df.copy()
+        display_df['hour_start'] = display_df['hour_start'].dt.strftime('%Y-%m-%d %H:%M')
+        display_df['pnl'] = display_df['pnl'].apply(lambda x: f"${x:.2f}")
+        display_df['cumulative_pnl'] = display_df['cumulative_pnl'].apply(lambda x: f"${x:.2f}")
+        display_df['portfolio_value'] = display_df['portfolio_value'].apply(lambda x: f"${x:.2f}")
+        
+        # Show first and last rows if too many
+        if len(display_df) > max_rows:
+            print(display_df.head(max_rows // 2).to_string(index=False))
+            print("...")
+            print(display_df.tail(max_rows // 2).to_string(index=False, header=False))
+        else:
+            print(display_df.to_string(index=False))
+        
+        print(f"{'='*80}\n")
+    
+    @staticmethod
+    def print_strategy_leaderboard(all_results: List[Dict]) -> None:
+        """
+        Print strategy leaderboard sorted by total PnL.
+        
+        Args:
+            all_results: List of results dictionaries from multiple strategies
+        """
+        comparison = MetricsCalculator.create_comparison_table(all_results)
+        
+        print("\n" + "=" * 100)
+        print("STRATEGY LEADERBOARD")
+        print("=" * 100)
+        
+        # Format for better display
+        display_df = comparison.copy()
+        display_df['total_pnl'] = display_df['total_pnl'].apply(lambda x: f"${x:.2f}")
+        display_df['return_pct'] = display_df['return_pct'].apply(lambda x: f"{x:.2f}%")
+        display_df['final_balance'] = display_df['final_balance'].apply(lambda x: f"${x:.2f}")
+        display_df['win_rate'] = display_df['win_rate'].apply(lambda x: f"{x:.2f}%")
+        display_df['avg_trade_pnl'] = display_df['avg_trade_pnl'].apply(lambda x: f"${x:.2f}")
+        display_df['max_drawdown'] = display_df['max_drawdown'].apply(lambda x: f"{x:.2f}%")
+        
+        # Add rank column
+        display_df.insert(0, 'rank', range(1, len(display_df) + 1))
+        
+        print(display_df.to_string(index=False))
+        print("=" * 100)
+        print()

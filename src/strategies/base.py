@@ -67,3 +67,22 @@ class Strategy(ABC):
         if not self.history:
             return None
         return self.history[-1]
+    
+    def _calculate_quantity(self, portfolio: 'Portfolio', price: float, max_position_pct: float) -> float:
+        """
+        Calculate quantity based on portfolio constraints.
+        
+        Args:
+            portfolio: Current portfolio state
+            price: Price per contract
+            max_position_pct: Maximum percentage of portfolio per trade
+            
+        Returns:
+            Whole number of contracts to buy
+        """
+        # Calculate max quantity based on position limit
+        max_value = portfolio.cash * max_position_pct
+        max_quantity = max_value / price if price > 0 else 0
+        
+        # Return whole number of contracts
+        return int(max_quantity)

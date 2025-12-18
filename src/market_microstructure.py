@@ -1,7 +1,8 @@
 """Market microstructure modeling for realistic trading conditions."""
 
+from __future__ import annotations
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 import pandas as pd
 import numpy as np
 
@@ -59,7 +60,7 @@ class MarketMicrostructure:
     def get_execution_price(self,
                            mid_price: float,
                            quantity: float,
-                           side: str) -> tuple[float, float, float]:
+                           side: str) -> Tuple[float, float, float]:
         """
         Calculate execution price including spread and slippage.
         
@@ -103,7 +104,7 @@ class MarketMicrostructure:
     
     def check_liquidity(self, 
                        timestamp: pd.Timestamp,
-                       quantity: float) -> tuple[bool, float]:
+                       quantity: float) -> Tuple[bool, float]:
         """
         Check if sufficient liquidity is available at this timestamp.
         

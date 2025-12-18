@@ -195,49 +195,58 @@ class Simulator:
                 })
             
             # Execute trades that have passed the latency delay
-            for decision in pending_decisions[:]:  # Copy list for safe iteration
+            # Process pending decisions more efficiently
+            executable_decisions = []
+            remaining_decisions = []
+            
+            for decision in pending_decisions:
                 time_diff = (timestamp - decision['decision_time']).total_seconds() / 60
                 
                 if time_diff >= self.config.latency_minutes:
-                    # Execute the delayed trade
-                    action = decision['action']
-                    quantity = decision['quantity']
-                    
-                    # Use current prices (after latency), not decision prices
-                    if action == TradeAction.BUY_YES:
-                        success = portfolio.buy_yes(
-                            quantity=quantity,
-                            price=yes_price,  # Current price, not decision price
-                            timestamp=timestamp,
-                            strike_price=strike_price
-                        )
-                        if success:
-                            trades_executed.append({
-                                'timestamp': timestamp,
-                                'action': 'BUY_YES',
-                                'quantity': quantity,
-                                'price': yes_price,
-                                'decision_time': decision['decision_time']
-                            })
-                    
-                    elif action == TradeAction.BUY_NO:
-                        success = portfolio.buy_no(
-                            quantity=quantity,
-                            price=no_price,  # Current price, not decision price
-                            timestamp=timestamp,
-                            strike_price=strike_price
-                        )
-                        if success:
-                            trades_executed.append({
-                                'timestamp': timestamp,
-                                'action': 'BUY_NO',
-                                'quantity': quantity,
-                                'price': no_price,
-                                'decision_time': decision['decision_time']
-                            })
-                    
-                    # Remove executed decision
-                    pending_decisions.remove(decision)
+                    executable_decisions.append(decision)
+                else:
+                    remaining_decisions.append(decision)
+            
+            # Update pending list
+            pending_decisions = remaining_decisions
+            
+            # Execute all ready trades
+            for decision in executable_decisions:
+                action = decision['action']
+                quantity = decision['quantity']
+                
+                # Use current prices (after latency), not decision prices
+                if action == TradeAction.BUY_YES:
+                    success = portfolio.buy_yes(
+                        quantity=quantity,
+                        price=yes_price,  # Current price, not decision price
+                        timestamp=timestamp,
+                        strike_price=strike_price
+                    )
+                    if success:
+                        trades_executed.append({
+                            'timestamp': timestamp,
+                            'action': 'BUY_YES',
+                            'quantity': quantity,
+                            'price': yes_price,
+                            'decision_time': decision['decision_time']
+                        })
+                
+                elif action == TradeAction.BUY_NO:
+                    success = portfolio.buy_no(
+                        quantity=quantity,
+                        price=no_price,  # Current price, not decision price
+                        timestamp=timestamp,
+                        strike_price=strike_price
+                    )
+                    if success:
+                        trades_executed.append({
+                            'timestamp': timestamp,
+                            'action': 'BUY_NO',
+                            'quantity': quantity,
+                            'price': no_price,
+                            'decision_time': decision['decision_time']
+                        })
         
         # Get final BTC price at hour end
         if hour_end in btc_prices.index:

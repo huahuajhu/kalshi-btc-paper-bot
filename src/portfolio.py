@@ -1,5 +1,6 @@
 """Portfolio management for tracking positions and PnL."""
 
+from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 import pandas as pd
@@ -29,7 +30,7 @@ class Portfolio:
     def __init__(self, 
                  starting_balance: float, 
                  fee_per_contract: float = 0.0,
-                 market_microstructure: Optional['MarketMicrostructure'] = None):
+                 market_microstructure: Optional[MarketMicrostructure] = None):
         """
         Initialize portfolio.
         

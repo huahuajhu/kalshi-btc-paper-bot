@@ -15,7 +15,7 @@ import requests
 UTC = timezone.utc
 BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines"
 KALSHI_BASE_URL = "https://api.elections.kalshi.com/trade-api/v2"
-MS_EPOCH_THRESHOLD = 1_000_000_000_000  # Anything above this (~2001-09-09) is treated as milliseconds
+MS_EPOCH_THRESHOLD = 1_000_000_000_000  # Unix timestamp; values > this (after 2001-09-09 01:46:40 UTC) are treated as milliseconds
 CENTS_TO_DOLLARS = 100.0
 BINANCE_API_LIMIT = 1000  # Max klines per request per Binance API docs
 API_TIMEOUT_SECONDS = 10

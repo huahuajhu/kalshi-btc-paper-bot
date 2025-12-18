@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
-from datetime import datetime, date, timedelta, timezone
+from datetime import datetime, date, time, timedelta, timezone
 from pathlib import Path
 from typing import Iterable, Optional, Tuple
 
@@ -15,6 +15,15 @@ import requests
 UTC = timezone.utc
 BINANCE_KLINES_URL = "https://api.binance.com/api/v3/klines"
 KALSHI_BASE_URL = "https://api.elections.kalshi.com/trade-api/v2"
+MS_EPOCH_THRESHOLD = 1_000_000_000_000  # Anything above this (~2001-09-09) is treated as milliseconds
+CENTS_TO_DOLLARS = 100.0
+BINANCE_API_LIMIT = 1000  # Max klines per request per Binance API docs
+API_TIMEOUT_SECONDS = 10
+PRICE_TOLERANCE = 0.01  # Acceptable deviation when validating YES + NO price sums
+MIDNIGHT = time(0, 0)
+DOLLAR_THRESHOLD = 1.0
+STRIKE_PRICE_FIELDS = ("strike", "strike_price", "strike_price_cents", "functional_strike", "custom_strike", "floor_strike")
+YES_PRICE_FIELDS = ("yes_mid", "yes_price", "last_price", "yes_bid", "yes_ask")
 
 
 def _parse_ts(value: object) -> Optional[datetime]:
@@ -23,8 +32,8 @@ def _parse_ts(value: object) -> Optional[datetime]:
         return None
 
     if isinstance(value, (int, float)):
-        # Kalshi and Binance both use ms; fall back to seconds if too small.
-        if value > 1e12:
+        # Treat large values as milliseconds (common for Kalshi/Binance); otherwise assume seconds.
+        if value > MS_EPOCH_THRESHOLD:
             value /= 1000.0
         return datetime.fromtimestamp(value, tz=UTC)
 
@@ -43,8 +52,8 @@ def _normalize_price(value: Optional[float]) -> Optional[float]:
         return None
     price = float(value)
     # Kalshi returns cents for many fields.
-    if price > 1:
-        price = price / 100.0
+    if price > DOLLAR_THRESHOLD:
+        price = price / CENTS_TO_DOLLARS
     if price < 0 or price > 1:
         return None
     return price
@@ -52,18 +61,18 @@ def _normalize_price(value: Optional[float]) -> Optional[float]:
 
 def _extract_strike(market: dict) -> Optional[float]:
     """Pull a strike price from a Kalshi market payload."""
-    for key in ("strike", "strike_price", "strike_price_cents", "functional_strike", "custom_strike", "floor_strike"):
+    for key in STRIKE_PRICE_FIELDS:
         if key in market and market[key] is not None:
             strike_val = float(market[key])
             if "cents" in key:
-                strike_val /= 100.0
+                strike_val /= CENTS_TO_DOLLARS
             return strike_val
     return None
 
 
 def _extract_yes_price(market: dict) -> Optional[float]:
     """Infer a YES price from market fields."""
-    for field in ("yes_mid", "yes_price", "last_price", "yes_bid", "yes_ask"):
+    for field in YES_PRICE_FIELDS:
         if field in market and market[field] is not None:
             price = _normalize_price(market[field])
             if price is not None:
@@ -98,7 +107,7 @@ def _append_csv(df: pd.DataFrame, path: Path, dedup_cols: Iterable[str], sort_co
 
 def fetch_btc_prices_for_day(target_date: date, symbol: str = "BTCUSDT") -> pd.DataFrame:
     """Fetch minute-level BTC prices for a single UTC day from Binance."""
-    start = datetime.combine(target_date, datetime.min.time(), tzinfo=UTC)
+    start = datetime.combine(target_date, MIDNIGHT, tzinfo=UTC)
     end = min(start + timedelta(days=1), datetime.now(tz=UTC))
 
     rows = []
@@ -111,10 +120,13 @@ def fetch_btc_prices_for_day(target_date: date, symbol: str = "BTCUSDT") -> pd.D
             "interval": "1m",
             "startTime": int(cursor.timestamp() * 1000),
             "endTime": int(end.timestamp() * 1000),
-            "limit": 1000,
+            "limit": BINANCE_API_LIMIT,
         }
-        resp = session.get(BINANCE_KLINES_URL, params=params, timeout=10)
-        resp.raise_for_status()
+        try:
+            resp = session.get(BINANCE_KLINES_URL, params=params, timeout=API_TIMEOUT_SECONDS)
+            resp.raise_for_status()
+        except requests.RequestException as exc:
+            raise RuntimeError(f"Failed to fetch {symbol} prices from Binance for {target_date}: {exc}") from exc
         klines = resp.json()
         if not klines:
             break
@@ -134,9 +146,7 @@ def fetch_btc_prices_for_day(target_date: date, symbol: str = "BTCUSDT") -> pd.D
         return pd.DataFrame(columns=["timestamp", "price"])
 
     btc_df = pd.DataFrame(rows)
-    if (btc_df["price"] <= 0).any():
-        raise ValueError("Received non-positive BTC prices from Binance")
-
+    _validate_btc_prices(btc_df)
     return btc_df
 
 
@@ -157,8 +167,11 @@ def fetch_kalshi_market_data(target_date: date, base_url: Optional[str] = None) 
         headers["Authorization"] = f"Bearer {token}"
 
     session = requests.Session()
-    resp = session.get(f"{base}/markets", params={"status": "open"}, headers=headers, timeout=10)
-    resp.raise_for_status()
+    try:
+        resp = session.get(f"{base}/markets", params={"status": "open"}, headers=headers, timeout=API_TIMEOUT_SECONDS)
+        resp.raise_for_status()
+    except requests.RequestException as exc:
+        raise RuntimeError(f"Failed to fetch Kalshi markets for {target_date}: {exc}") from exc
     payload = resp.json()
     markets = payload.get("markets") or payload.get("data") or []
 
@@ -209,6 +222,7 @@ def fetch_kalshi_market_data(target_date: date, base_url: Optional[str] = None) 
 
     markets_df = pd.DataFrame(market_rows, columns=["hour_start", "strike_price"])
     contracts_df = pd.DataFrame(contract_rows, columns=["timestamp", "strike_price", "yes_price", "no_price"])
+    _validate_contract_prices(contracts_df)
     return markets_df, contracts_df
 
 
@@ -232,7 +246,9 @@ class DailyDataCollector:
             print(f"Fetching BTC minute data for {target_date} (UTC)...")
             btc_df = fetch_btc_prices_for_day(target_date)
             if btc_df.empty:
-                raise RuntimeError("No BTC prices returned for the target date")
+                raise RuntimeError(
+                    f"No BTC prices returned for {target_date} (API unavailable or no intraday data)."
+                )
             _append_csv(btc_df, self.btc_prices_path, dedup_cols=["timestamp"], sort_cols=["timestamp"])
             print(f"Saved {len(btc_df)} BTC rows to {self.btc_prices_path}")
         else:
@@ -242,8 +258,12 @@ class DailyDataCollector:
             print(f"Fetching Kalshi BTC hourly markets for {target_date} (UTC)...")
             markets_df, contracts_df = fetch_kalshi_market_data(target_date, base_url=self.kalshi_base_url)
 
-            if markets_df.empty or contracts_df.empty:
-                raise RuntimeError("No Kalshi BTC market data returned for the target date")
+            if markets_df.empty:
+                raise RuntimeError(
+                    f"No Kalshi BTC markets found for {target_date} (API unavailable or no BTC hourly listings)."
+                )
+            if contracts_df.empty:
+                raise RuntimeError(f"No Kalshi BTC contract prices returned for {target_date}")
 
             _append_csv(markets_df, self.markets_path, dedup_cols=["hour_start", "strike_price"], sort_cols=["hour_start", "strike_price"])
             _append_csv(
@@ -259,6 +279,30 @@ class DailyDataCollector:
             )
         else:
             print("Skipping Kalshi fetch (per flag).")
+
+
+def _validate_btc_prices(df: pd.DataFrame) -> None:
+    if df.empty:
+        return
+    if (df["price"] <= 0).any():
+        raise ValueError("BTC prices must be positive")
+
+
+def _validate_contract_prices(df: pd.DataFrame) -> None:
+    if df.empty:
+        return
+    if (df["yes_price"] < 0).any() or (df["yes_price"] > 1).any():
+        raise ValueError("YES prices must be between 0 and 1")
+    if (df["no_price"] < 0).any() or (df["no_price"] > 1).any():
+        raise ValueError("NO prices must be between 0 and 1")
+
+    price_sum = df["yes_price"] + df["no_price"]
+    valid_mask = price_sum.between(1 - PRICE_TOLERANCE, 1 + PRICE_TOLERANCE)
+    if not valid_mask.all():
+        bad_row = df.loc[~valid_mask].iloc[0]
+        raise ValueError(
+            f"YES + NO must ≈ 1.00. Example row -> YES: {bad_row['yes_price']}, NO: {bad_row['no_price']}"
+        )
 
 
 def _parse_args() -> argparse.Namespace:

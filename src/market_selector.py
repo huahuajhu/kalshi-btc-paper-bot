@@ -102,10 +102,10 @@ class MarketSelector:
             List of strike prices
         """
         # Round to nearest strike interval
-        base_strike = round(price / self.strike_interval) * self.strike_interval
+        base_strike = round(price / self.btc_price_interval) * self.btc_price_interval
         
         strikes = []
         for i in range(-num_strikes, num_strikes + 1):
-            strikes.append(base_strike + i * self.strike_interval)
+            strikes.append(base_strike + i * self.btc_price_interval)
         
         return sorted(strikes)

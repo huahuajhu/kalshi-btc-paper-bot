@@ -371,6 +371,7 @@ class MarketSelector:
     def _log_selection(self, hour_start: pd.Timestamp, btc_spot_price: float, selection_result: Dict):
         """Log market selection to CSV file."""
         metrics = selection_result.get('metrics', {})
+        volatility = selection_result.get('volatility', 0.0)
         
         log_entry = [
             hour_start,
@@ -380,7 +381,7 @@ class MarketSelector:
             metrics.get('avg_spread', 0.0),
             metrics.get('volume_proxy', 0.0),
             metrics.get('price_reaction', 0.0),
-            selection_result.get('volatility', 0.0),
+            volatility,
             selection_result.get('num_strikes_considered', 0),
             selection_result.get('reason', '')
         ]
@@ -396,7 +397,8 @@ class MarketSelector:
             'btc_spot_price': btc_spot_price,
             'selected_strike': selection_result['strike_price'],
             'method': selection_result.get('method', 'unknown'),
-            'metrics': metrics
+            'metrics': metrics,
+            'volatility': volatility
         })
     
     def get_selection_summary(self) -> pd.DataFrame:
@@ -409,16 +411,31 @@ class MarketSelector:
         if not self.selection_log:
             return pd.DataFrame()
         
-        df = pd.read_csv(self.log_path)
+        # Extract metrics from in-memory log
+        spreads = []
+        volumes = []
+        reactions = []
+        volatilities = []
+        
+        for entry in self.selection_log:
+            metrics = entry.get('metrics', {})
+            spreads.append(metrics.get('avg_spread', 0.0))
+            volumes.append(metrics.get('volume_proxy', 0.0))
+            reactions.append(metrics.get('price_reaction', 0.0))
+            volatilities.append(entry.get('volatility', 0.0))
+        
+        # Count intelligent vs fallback selections
+        intelligent_count = sum(1 for entry in self.selection_log if entry.get('method') == 'intelligent_selection')
+        fallback_count = len(self.selection_log) - intelligent_count
         
         summary = {
-            'total_selections': len(df),
-            'intelligent_selections': len(df[df['selection_method'] == 'intelligent_selection']),
-            'fallback_selections': len(df[df['selection_method'] != 'intelligent_selection']),
-            'avg_spread': df['avg_spread'].mean(),
-            'avg_volume_proxy': df['avg_volume_proxy'].mean(),
-            'avg_price_reaction': df['price_reaction_score'].mean(),
-            'avg_volatility': df['volatility_estimate'].mean()
+            'total_selections': len(self.selection_log),
+            'intelligent_selections': intelligent_count,
+            'fallback_selections': fallback_count,
+            'avg_spread': np.mean(spreads) if spreads else 0.0,
+            'avg_volume_proxy': np.mean(volumes) if volumes else 0.0,
+            'avg_price_reaction': np.mean(reactions) if reactions else 0.0,
+            'avg_volatility': np.mean(volatilities) if volatilities else 0.0
         }
         
         return pd.DataFrame([summary])

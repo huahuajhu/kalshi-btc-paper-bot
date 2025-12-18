@@ -139,7 +139,7 @@ def generate_hourly_markets(btc_df: pd.DataFrame, interval: int = 250) -> pd.Dat
     """
     markets = []
     
-    # Group by hour (use 'h' instead of 'H')
+    # Group by hour (pandas 2.2+ uses 'h' instead of deprecated 'H')
     btc_df = btc_df.copy()
     btc_df['hour_start'] = btc_df['timestamp'].dt.floor('h')
     
@@ -178,9 +178,9 @@ def generate_contract_prices(btc_df: pd.DataFrame, markets_df: pd.DataFrame) -> 
         markets_df = markets_df.copy()
         markets_df['hour_start'] = pd.to_datetime(markets_df['hour_start'])
     
-    # Add hour_start to BTC data  
+    # Add hour_start to BTC data (pandas 2.2+ uses 'h' instead of deprecated 'H')
     btc_df = btc_df.copy()
-    btc_df['hour_start'] = btc_df['timestamp'].dt.floor('h')  # Use 'h' instead of 'H'
+    btc_df['hour_start'] = btc_df['timestamp'].dt.floor('h')
     
     # For each market (hour + strike combination)
     for _, market in markets_df.iterrows():

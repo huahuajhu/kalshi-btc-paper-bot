@@ -176,7 +176,8 @@ class Simulator:
                     yes_price=yes_price,
                     no_price=no_price,
                     strike_price=strike_price,
-                    btc_history=btc_history.copy()
+                    hour_start=hour_start,
+                    btc_history=btc_history
                 )
             
             # Feed data to strategy
@@ -230,7 +231,7 @@ class Simulator:
         
         # Add labels to dataset if enabled
         if self.dataset_factory is not None:
-            self.dataset_factory.add_labels(final_btc_price, strike_price)
+            self.dataset_factory.add_labels(final_btc_price, strike_price, hour_start)
         
         # Resolve positions
         hour_pnl = portfolio.resolve_positions(

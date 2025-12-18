@@ -73,7 +73,9 @@ def main():
             print(f"    YES wins (label=1): {(dataset['label'] == 1).sum()}")
             print(f"    NO wins (label=0): {(dataset['label'] == 0).sum()}")
             print(f"\n  Feature ranges:")
-            for col in ['btc_return_5m', 'btc_return_15m', 'spread', 'volatility']:
+            # Get feature columns from the factory
+            feature_cols = simulator.dataset_factory.get_feature_columns()
+            for col in feature_cols:
                 if col in dataset.columns:
                     print(f"    {col}: [{dataset[col].min():.6f}, {dataset[col].max():.6f}]")
         else:

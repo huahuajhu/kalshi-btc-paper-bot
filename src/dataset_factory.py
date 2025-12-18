@@ -45,6 +45,7 @@ class DatasetFactory:
                            yes_price: float,
                            no_price: float,
                            strike_price: float,
+                           hour_start: pd.Timestamp,
                            btc_history: List[float]) -> None:
         """
         Collect data for a single minute during simulation.
@@ -55,13 +56,15 @@ class DatasetFactory:
             yes_price: Current YES contract price
             no_price: Current NO contract price
             strike_price: Strike price of the market
+            hour_start: Start time of the market hour (for unique identification)
             btc_history: List of recent BTC prices (for computing returns)
         """
         # Calculate BTC returns
         btc_return_5m = self._calculate_return(btc_history, self.lookback_5m)
         btc_return_15m = self._calculate_return(btc_history, self.lookback_15m)
         
-        # Calculate spread
+        # Calculate spread (difference between YES and NO prices)
+        # Note: In Kalshi markets, YES + NO = 1.0, so spread shows market sentiment asymmetry
         spread = abs(yes_price - no_price)
         
         # Calculate volatility
@@ -70,6 +73,7 @@ class DatasetFactory:
         # Store row (label will be added at market resolution)
         row = {
             'timestamp': timestamp,
+            'hour_start': hour_start,
             'btc_price': btc_price,
             'btc_return_5m': btc_return_5m,
             'btc_return_15m': btc_return_15m,
@@ -83,20 +87,24 @@ class DatasetFactory:
         
         self.dataset_rows.append(row)
     
-    def add_labels(self, final_btc_price: float, strike_price: float) -> None:
+    def add_labels(self, final_btc_price: float, strike_price: float,
+                   hour_start: pd.Timestamp) -> None:
         """
         Add labels to all collected rows for a market based on final outcome.
         
         Args:
             final_btc_price: Final BTC price at market resolution
             strike_price: Strike price of the market
+            hour_start: Start time of the market hour (for unique identification)
         """
         # Label is 1 if BTC >= strike (YES wins), 0 otherwise (NO wins)
         label = 1 if final_btc_price >= strike_price else 0
         
-        # Apply label to all rows from this market
+        # Apply label to all rows from this specific market
         for row in self.dataset_rows:
-            if row['strike_price'] == strike_price and row['label'] is None:
+            if (row['strike_price'] == strike_price and 
+                row['hour_start'] == hour_start and 
+                row['label'] is None):
                 row['label'] = label
     
     def to_dataframe(self) -> pd.DataFrame:
@@ -133,6 +141,22 @@ class DatasetFactory:
         df = df[columns_order]
         
         return df
+    
+    def get_feature_columns(self) -> List[str]:
+        """
+        Get list of feature column names (excluding metadata and labels).
+        
+        Returns:
+            List of feature column names
+        """
+        return [
+            'btc_return_5m',
+            'btc_return_15m',
+            'yes_price',
+            'no_price',
+            'spread',
+            'volatility'
+        ]
     
     def save_csv(self, output_path: str) -> None:
         """

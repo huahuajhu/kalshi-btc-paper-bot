@@ -46,7 +46,7 @@ class MarketSelector:
         
         Metrics include:
         - Spread: Absolute deviation of YES + NO prices from 1.0, averaged over the hour
-        - Volume proxy: Count of price changes (more changes = more trading activity)
+        - Volume proxy: Sum of absolute price changes (larger value = more trading activity)
         - Price reaction: Correlation between BTC price changes and contract price changes
         
         Args:

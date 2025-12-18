@@ -50,3 +50,7 @@ htmlcov/
 *.log
 *.tmp
 tmp/
+
+# Environment variables
+.env
+.env.local

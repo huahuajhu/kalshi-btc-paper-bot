@@ -42,9 +42,37 @@ cd kalshi-btc-paper-bot
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Configure environment (optional)
+cp .env.example .env
+# Edit .env to customize data sources and paths
 ```
 
 ## Usage
+
+### Data Collection (New! 📊)
+
+Collect today's BTC prices and generate Kalshi market data:
+
+```bash
+# Run the full daily data collection pipeline
+python scripts/collect_daily_data.py
+
+# Or run individual collection scripts:
+python scripts/collect_btc_prices.py      # Fetch BTC prices from exchanges
+python scripts/collect_kalshi_data.py     # Generate Kalshi market data
+```
+
+**What it does:**
+- Fetches today's minute-level BTC prices from Binance/Coinbase (via CCXT)
+- Generates simulated Kalshi hourly markets with $250 strike intervals
+- Generates YES/NO contract prices minute-by-minute
+- Validates and appends data to CSV files in `data/`
+- No credentials required for BTC prices (public API)
+
+See [`scripts/README.md`](scripts/README.md) for detailed documentation.
+
+### Running Simulations
 
 Run the simulator with default settings:
 
@@ -66,6 +94,12 @@ kalshi-btc-paper-bot/
 │   ├── btc_prices_minute.csv     # Minute-level BTC prices
 │   ├── kalshi_markets.csv        # Hourly markets with strikes
 │   └── kalshi_contract_prices.csv # YES/NO price evolution
+│
+├── scripts/                       # Data collection scripts (NEW!)
+│   ├── collect_daily_data.py     # Main pipeline orchestrator
+│   ├── collect_btc_prices.py     # Fetch BTC prices via CCXT
+│   ├── collect_kalshi_data.py    # Generate Kalshi market data
+│   └── README.md                 # Collection scripts documentation
 │
 ├── src/                           # Core modules
 │   ├── config.py                 # Configuration settings

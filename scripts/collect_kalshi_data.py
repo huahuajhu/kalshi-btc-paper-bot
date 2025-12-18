@@ -13,7 +13,7 @@ Generates:
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 from dotenv import load_dotenv
 import sys
@@ -50,7 +50,8 @@ def get_todays_btc_prices(btc_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame with today's prices only
     """
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).date()
+    btc_df = btc_df.copy()
     btc_df['date'] = pd.to_datetime(btc_df['timestamp']).dt.date
     today_df = btc_df[btc_df['date'] == today].copy()
     today_df = today_df.drop('date', axis=1)
@@ -138,8 +139,9 @@ def generate_hourly_markets(btc_df: pd.DataFrame, interval: int = 250) -> pd.Dat
     """
     markets = []
     
-    # Group by hour
-    btc_df['hour_start'] = btc_df['timestamp'].dt.floor('H')
+    # Group by hour (use 'h' instead of 'H')
+    btc_df = btc_df.copy()
+    btc_df['hour_start'] = btc_df['timestamp'].dt.floor('h')
     
     for hour_start, hour_data in btc_df.groupby('hour_start'):
         # Get BTC price at hour start
@@ -171,12 +173,18 @@ def generate_contract_prices(btc_df: pd.DataFrame, markets_df: pd.DataFrame) -> 
     """
     contract_prices = []
     
-    # Add hour_start to BTC data
-    btc_df['hour_start'] = btc_df['timestamp'].dt.floor('H')
+    # Ensure markets_df hour_start is datetime
+    if 'hour_start' in markets_df.columns:
+        markets_df = markets_df.copy()
+        markets_df['hour_start'] = pd.to_datetime(markets_df['hour_start'])
+    
+    # Add hour_start to BTC data  
+    btc_df = btc_df.copy()
+    btc_df['hour_start'] = btc_df['timestamp'].dt.floor('h')  # Use 'h' instead of 'H'
     
     # For each market (hour + strike combination)
     for _, market in markets_df.iterrows():
-        hour_start = market['hour_start']
+        hour_start = pd.to_datetime(market['hour_start'])
         strike_price = market['strike_price']
         
         # Get BTC prices for this hour

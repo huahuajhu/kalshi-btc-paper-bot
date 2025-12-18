@@ -83,9 +83,9 @@ class NoTradeFilterStrategy(Strategy):
         yes_prices = [h['yes_price'] for h in lookback]
         no_prices = [h['no_price'] for h in lookback]
         
-        # Check for consistent momentum
-        yes_increasing = all(yes_prices[i] <= yes_prices[i+1] for i in range(len(yes_prices)-1))
-        no_increasing = all(no_prices[i] <= no_prices[i+1] for i in range(len(no_prices)-1))
+        # Check for consistent momentum (strict increasing)
+        yes_increasing = all(yes_prices[i] < yes_prices[i+1] for i in range(len(yes_prices)-1))
+        no_increasing = all(no_prices[i] < no_prices[i+1] for i in range(len(no_prices)-1))
         
         current = self.history[-1]
         

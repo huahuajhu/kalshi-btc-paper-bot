@@ -87,6 +87,8 @@ class Portfolio:
         self.positions.append(position)
         
         # Record trade
+        # Note: Both 'timestamp' and 'entry_timestamp' are kept for compatibility
+        # 'entry_timestamp' is used by metrics for duration calculations
         self.trade_history.append({
             'timestamp': timestamp,
             'entry_timestamp': timestamp,
@@ -134,6 +136,8 @@ class Portfolio:
         self.positions.append(position)
         
         # Record trade
+        # Note: Both 'timestamp' and 'entry_timestamp' are kept for compatibility
+        # 'entry_timestamp' is used by metrics for duration calculations
         self.trade_history.append({
             'timestamp': timestamp,
             'entry_timestamp': timestamp,

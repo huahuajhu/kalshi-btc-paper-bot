@@ -107,15 +107,11 @@ class TrendContinuationStrategy(Strategy):
         if len(prices) < 2:
             return 0.0
         
-        # Calculate linear regression slope
-        x = np.arange(len(prices))
-        y = np.array(prices)
-        
-        # Simple slope calculation
-        slope = (y[-1] - y[0]) / len(prices)
+        # Calculate simple slope (price change over time period)
+        slope = (prices[-1] - prices[0]) / len(prices)
         
         # Normalize by average price to get percentage trend
-        avg_price = np.mean(y)
+        avg_price = np.mean(prices)
         if avg_price > 0:
             normalized_slope = slope / avg_price * len(prices)
         else:

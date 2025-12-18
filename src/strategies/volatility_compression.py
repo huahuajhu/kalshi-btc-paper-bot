@@ -75,6 +75,8 @@ class VolatilityCompressionStrategy(Strategy):
             return TradeAction.HOLD, None
         
         # Check if prices were compressed in the lookback window
+        # We need compression_window + 1 points to have a full window,
+        # then exclude the last point (current) to check historical compression
         compression_window_data = self.history[-(self.compression_window + 1):-1]
         is_compressed = self._is_compressed(compression_window_data)
         

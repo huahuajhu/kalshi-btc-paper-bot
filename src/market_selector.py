@@ -234,9 +234,15 @@ class MarketSelector:
             liquid_markets['volume_score'] = 0.5
         
         if liquid_markets['price_reaction'].max() > 0:
-            liquid_markets['reaction_score'] = (
-                liquid_markets['price_reaction'] / liquid_markets['price_reaction'].max()
-            )
+            max_reaction = liquid_markets['price_reaction'].max()
+            min_reaction = liquid_markets['price_reaction'].min()
+            if max_reaction == min_reaction:
+                # All non-zero reactions are equal; assign a neutral score
+                liquid_markets['reaction_score'] = 0.5
+            else:
+                liquid_markets['reaction_score'] = (
+                    liquid_markets['price_reaction'] / max_reaction
+                )
         else:
             liquid_markets['reaction_score'] = 0.5
         

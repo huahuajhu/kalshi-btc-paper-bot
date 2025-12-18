@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 import pandas as pd
 
+if TYPE_CHECKING:
+    from .market_microstructure import MarketMicrostructure
 
 @dataclass
 class Position:

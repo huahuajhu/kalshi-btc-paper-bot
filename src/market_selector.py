@@ -81,7 +81,7 @@ class MarketSelector:
         )
         avg_spread = hour_contracts['spread'].mean()
         
-        # Calculate volume proxy (more price changes = more activity)
+        # Calculate volume proxy (sum of price change magnitudes = more activity)
         yes_changes = hour_contracts['yes_price'].diff().abs().sum()
         no_changes = hour_contracts['no_price'].diff().abs().sum()
         volume_proxy = yes_changes + no_changes

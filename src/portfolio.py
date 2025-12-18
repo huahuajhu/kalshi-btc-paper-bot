@@ -106,6 +106,9 @@ class Portfolio:
         
         # Check affordability with actual execution price
         if not self.can_afford(actual_quantity, actual_price):
+            # Roll back liquidity consumption if trade fails
+            if self.market_microstructure:
+                self.market_microstructure.rollback_liquidity(timestamp, actual_quantity)
             return False
         
         # Deduct cost and fees
@@ -181,6 +184,9 @@ class Portfolio:
         
         # Check affordability with actual execution price
         if not self.can_afford(actual_quantity, actual_price):
+            # Roll back liquidity consumption if trade fails
+            if self.market_microstructure:
+                self.market_microstructure.rollback_liquidity(timestamp, actual_quantity)
             return False
         
         # Deduct cost and fees

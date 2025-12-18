@@ -224,11 +224,13 @@ class Simulator:
                         strike_price=strike_price
                     )
                     if success:
+                        # Get actual executed quantity from portfolio's trade history
+                        last_trade = portfolio.trade_history[-1]
                         trades_executed.append({
                             'timestamp': timestamp,
                             'action': 'BUY_YES',
-                            'quantity': quantity,
-                            'price': yes_price,
+                            'quantity': last_trade['quantity'],
+                            'price': last_trade['price'],
                             'decision_time': decision['decision_time']
                         })
                 
@@ -240,11 +242,13 @@ class Simulator:
                         strike_price=strike_price
                     )
                     if success:
+                        # Get actual executed quantity from portfolio's trade history
+                        last_trade = portfolio.trade_history[-1]
                         trades_executed.append({
                             'timestamp': timestamp,
                             'action': 'BUY_NO',
-                            'quantity': quantity,
-                            'price': no_price,
+                            'quantity': last_trade['quantity'],
+                            'price': last_trade['price'],
                             'decision_time': decision['decision_time']
                         })
         

@@ -48,14 +48,10 @@ class MarketMicrostructure:
         
         # Track liquidity consumption per timestamp
         self.liquidity_consumed: Dict[pd.Timestamp, float] = {}
-        
-        # Track pending orders (for latency simulation)
-        self.pending_orders = []
     
     def reset_hour(self):
         """Reset state for a new trading hour."""
         self.liquidity_consumed.clear()
-        self.pending_orders.clear()
     
     def get_execution_price(self,
                            mid_price: float,
@@ -141,6 +137,17 @@ class MarketMicrostructure:
         """
         current = self.liquidity_consumed.get(timestamp, 0.0)
         self.liquidity_consumed[timestamp] = current + quantity
+    
+    def rollback_liquidity(self, timestamp: pd.Timestamp, quantity: float):
+        """
+        Roll back liquidity consumption if trade fails.
+        
+        Args:
+            timestamp: Timestamp of the trade
+            quantity: Quantity to roll back
+        """
+        current = self.liquidity_consumed.get(timestamp, 0.0)
+        self.liquidity_consumed[timestamp] = max(0.0, current - quantity)
     
     def execute_trade(self,
                      timestamp: pd.Timestamp,

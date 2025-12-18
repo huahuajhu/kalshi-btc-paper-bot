@@ -56,16 +56,18 @@ class MetricsCalculator:
             # Calculate trade duration
             if portfolio.trade_history:
                 trade_df = pd.DataFrame(portfolio.trade_history)
-                pnl_df_with_entry = pnl_df.merge(
-                    trade_df[['timestamp', 'strike_price']],
-                    left_on=['timestamp'],
-                    right_on=['timestamp'],
-                    how='left',
-                    suffixes=('_exit', '_entry')
-                )
-                # For simplicity, assume average trade lasts from entry to hour end
-                # In a real system, we'd track exact entry/exit times
-                metrics['avg_trade_duration_minutes'] = 30  # Placeholder
+
+                # Derive average trade duration from entry and exit timestamps if available
+                if 'entry_timestamp' in trade_df.columns and 'exit_timestamp' in trade_df.columns:
+                    entry_times = pd.to_datetime(trade_df['entry_timestamp'])
+                    exit_times = pd.to_datetime(trade_df['exit_timestamp'])
+                    durations = (exit_times - entry_times).dt.total_seconds() / 60.0
+                    metrics['avg_trade_duration_minutes'] = float(durations.mean()) if len(durations) > 0 else 0
+                else:
+                    # If we do not have both timestamps, we cannot compute a reliable duration
+                    metrics['avg_trade_duration_minutes'] = 0
+            else:
+                metrics['avg_trade_duration_minutes'] = 0
         else:
             metrics['win_rate'] = 0
             metrics['total_trades'] = 0

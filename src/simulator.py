@@ -1,7 +1,7 @@
 """Main simulator for paper trading."""
 
 import pandas as pd
-from typing import List, Dict
+from typing import Dict
 from .config import SimulationConfig
 from .data_loader import DataLoader
 from .market_selector import MarketSelector

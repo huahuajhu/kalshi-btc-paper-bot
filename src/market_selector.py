@@ -229,11 +229,18 @@ class MarketSelector:
         else:
             liquid_markets['spread_score'] = 1.0
         
-        if liquid_markets['volume_proxy'].max() > 0:
-            liquid_markets['volume_score'] = (
-                liquid_markets['volume_proxy'] / liquid_markets['volume_proxy'].max()
-            )
+        max_volume = liquid_markets['volume_proxy'].max()
+        min_volume = liquid_markets['volume_proxy'].min()
+        if max_volume > 0:
+            if max_volume == min_volume:
+                # All volumes equal and positive: assign neutral score for fairness
+                liquid_markets['volume_score'] = 0.5
+            else:
+                liquid_markets['volume_score'] = (
+                    liquid_markets['volume_proxy'] / max_volume
+                )
         else:
+            # Non-positive volumes: assign neutral score
             liquid_markets['volume_score'] = 0.5
         
         if liquid_markets['price_reaction'].max() > 0:

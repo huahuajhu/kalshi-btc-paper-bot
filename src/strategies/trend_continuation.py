@@ -79,15 +79,26 @@ class TrendContinuationStrategy(Strategy):
         
         current = self.history[-1]
         
-        # Trade in direction of strongest trend
-        if yes_trend >= self.min_trend_strength and yes_trend > no_trend:
-            quantity = self._calculate_quantity(portfolio, current['yes_price'])
+        # Handle edge case where trends are equal
+        if (yes_trend >= self.min_trend_strength and 
+            no_trend >= self.min_trend_strength and 
+            yes_trend == no_trend):
+            # Both trends are equal and strong - don't trade
+            return TradeAction.HOLD, None
+        
+        # Trade in direction of strongest trend only if the other side is weak
+        if (yes_trend >= self.min_trend_strength and 
+            yes_trend > no_trend and 
+            no_trend < self.min_trend_strength):
+            quantity = self._calculate_quantity(portfolio, current['yes_price'], self.max_position_pct)
             if quantity > 0:
                 self.has_traded = True
                 return TradeAction.BUY_YES, quantity
         
-        if no_trend >= self.min_trend_strength and no_trend > yes_trend:
-            quantity = self._calculate_quantity(portfolio, current['no_price'])
+        if (no_trend >= self.min_trend_strength and 
+            no_trend > yes_trend and 
+            yes_trend < self.min_trend_strength):
+            quantity = self._calculate_quantity(portfolio, current['no_price'], self.max_position_pct)
             if quantity > 0:
                 self.has_traded = True
                 return TradeAction.BUY_NO, quantity
@@ -118,12 +129,3 @@ class TrendContinuationStrategy(Strategy):
             normalized_slope = 0.0
         
         return normalized_slope
-    
-    def _calculate_quantity(self, portfolio: 'Portfolio', price: float) -> float:
-        """Calculate quantity based on portfolio constraints."""
-        # Calculate max quantity based on position limit
-        max_value = portfolio.cash * self.max_position_pct
-        max_quantity = max_value / price if price > 0 else 0
-        
-        # Return whole number of contracts
-        return int(max_quantity)

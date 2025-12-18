@@ -87,23 +87,24 @@ class VolatilityCompressionStrategy(Strategy):
         if not self.was_compressed:
             return TradeAction.HOLD, None
         
-        # Check for breakout
+        # Check for breakout (using percentage-based thresholds)
         current = self.history[-1]
         previous = self.history[-2]
         
-        yes_breakout = current['yes_price'] - previous['yes_price']
-        no_breakout = current['no_price'] - previous['no_price']
+        # Calculate percentage change for more consistent detection across price levels
+        yes_pct_change = (current['yes_price'] - previous['yes_price']) / previous['yes_price'] if previous['yes_price'] > 0 else 0
+        no_pct_change = (current['no_price'] - previous['no_price']) / previous['no_price'] if previous['no_price'] > 0 else 0
         
         # Fade YES breakout (buy NO)
-        if yes_breakout >= self.breakout_threshold:
-            quantity = self._calculate_quantity(portfolio, current['no_price'])
+        if yes_pct_change >= self.breakout_threshold:
+            quantity = self._calculate_quantity(portfolio, current['no_price'], self.max_position_pct)
             if quantity > 0:
                 self.has_traded = True
                 return TradeAction.BUY_NO, quantity
         
         # Fade NO breakout (buy YES)
-        if no_breakout >= self.breakout_threshold:
-            quantity = self._calculate_quantity(portfolio, current['yes_price'])
+        if no_pct_change >= self.breakout_threshold:
+            quantity = self._calculate_quantity(portfolio, current['yes_price'], self.max_position_pct)
             if quantity > 0:
                 self.has_traded = True
                 return TradeAction.BUY_YES, quantity
@@ -123,21 +124,9 @@ class VolatilityCompressionStrategy(Strategy):
         if not window_data:
             return False
         
-        # Calculate price ranges for both YES and NO
+        # In binary markets where YES + NO ≈ 1.0, check only YES for compression
+        # since NO will naturally track YES inversely
         yes_prices = [h['yes_price'] for h in window_data]
-        no_prices = [h['no_price'] for h in window_data]
-        
         yes_range = max(yes_prices) - min(yes_prices)
-        no_range = max(no_prices) - min(no_prices)
         
-        # Both should be compressed
-        return yes_range <= self.compression_threshold and no_range <= self.compression_threshold
-    
-    def _calculate_quantity(self, portfolio: 'Portfolio', price: float) -> float:
-        """Calculate quantity based on portfolio constraints."""
-        # Calculate max quantity based on position limit
-        max_value = portfolio.cash * self.max_position_pct
-        max_quantity = max_value / price if price > 0 else 0
-        
-        # Return whole number of contracts
-        return int(max_quantity)
+        return yes_range <= self.compression_threshold

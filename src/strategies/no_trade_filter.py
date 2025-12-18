@@ -1,7 +1,6 @@
 """No-Trade Filter strategy."""
 
 import pandas as pd
-import numpy as np
 from typing import Optional
 from .base import Strategy, TradeAction
 
@@ -83,20 +82,23 @@ class NoTradeFilterStrategy(Strategy):
         yes_prices = [h['yes_price'] for h in lookback]
         no_prices = [h['no_price'] for h in lookback]
         
-        # Check for consistent momentum (strict increasing)
-        yes_increasing = all(yes_prices[i] < yes_prices[i+1] for i in range(len(yes_prices)-1))
-        no_increasing = all(no_prices[i] < no_prices[i+1] for i in range(len(no_prices)-1))
+        # Calculate total price change to detect momentum (less restrictive than all increasing)
+        yes_total_change = yes_prices[-1] - yes_prices[0]
+        no_total_change = no_prices[-1] - no_prices[0]
+        
+        # Require at least 1% change to consider momentum
+        min_momentum_threshold = 0.01
         
         current = self.history[-1]
         
-        if yes_increasing:
-            quantity = self._calculate_quantity(portfolio, current['yes_price'])
+        if yes_total_change >= min_momentum_threshold and yes_total_change > no_total_change:
+            quantity = self._calculate_quantity(portfolio, current['yes_price'], self.max_position_pct)
             if quantity > 0:
                 self.has_traded = True
                 return TradeAction.BUY_YES, quantity
         
-        if no_increasing:
-            quantity = self._calculate_quantity(portfolio, current['no_price'])
+        if no_total_change >= min_momentum_threshold and no_total_change > yes_total_change:
+            quantity = self._calculate_quantity(portfolio, current['no_price'], self.max_position_pct)
             if quantity > 0:
                 self.has_traded = True
                 return TradeAction.BUY_NO, quantity
@@ -127,12 +129,3 @@ class NoTradeFilterStrategy(Strategy):
             return False  # Spread too wide, poor liquidity
         
         return True
-    
-    def _calculate_quantity(self, portfolio: 'Portfolio', price: float) -> float:
-        """Calculate quantity based on portfolio constraints."""
-        # Calculate max quantity based on position limit
-        max_value = portfolio.cash * self.max_position_pct
-        max_quantity = max_value / price if price > 0 else 0
-        
-        # Return whole number of contracts
-        return int(max_quantity)

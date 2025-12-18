@@ -69,6 +69,11 @@ def main():
             metrics = MetricsCalculator.calculate_metrics(results)
             MetricsCalculator.print_metrics(metrics)
             
+            # Print market selection summary if available
+            if 'market_selection_summary' in results and not results['market_selection_summary'].empty:
+                print("\nMarket Selection Summary:")
+                print(results['market_selection_summary'].to_string(index=False))
+            
         except Exception as e:
             print(f"Error running {strategy.name}: {e}")
             import traceback
@@ -84,6 +89,7 @@ def main():
         print(comparison.to_string(index=False))
         print()
     
+    print("\nMarket selection log saved to: data/market_selection_log.csv")
     print("\nSimulation complete!")
 
 

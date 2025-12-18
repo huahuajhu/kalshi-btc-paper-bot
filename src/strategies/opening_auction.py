@@ -96,14 +96,22 @@ class OpeningAuctionStrategy(Strategy):
         yes_change = current_yes - start_yes
         no_change = current_no - start_no
         
-        # Trade based on significant price momentum
-        if yes_change >= self.min_price_increase and yes_change > no_change:
+        # Trade based on significant price momentum on only one side
+        if (
+            yes_change >= self.min_price_increase
+            and yes_change > no_change
+            and no_change < self.min_price_increase
+        ):
             quantity = self._calculate_quantity(portfolio, current_yes)
             if quantity > 0:
                 self.has_traded = True
                 return TradeAction.BUY_YES, quantity
         
-        if no_change >= self.min_price_increase and no_change > yes_change:
+        if (
+            no_change >= self.min_price_increase
+            and no_change > yes_change
+            and yes_change < self.min_price_increase
+        ):
             quantity = self._calculate_quantity(portfolio, current_no)
             if quantity > 0:
                 self.has_traded = True

@@ -254,9 +254,12 @@ class StrategyVisualizer:
         ax.set_title('Equity Curves: Portfolio Value Over Time')
         ax.grid(True, alpha=0.3)
         
-        # Add starting balance reference line
-        ax.axhline(y=all_results[0]['initial_balance'], 
-                   color='black', linestyle='--', linewidth=1, alpha=0.5)
+        # Add starting balance reference line (if available)
+        if all_results and 'initial_balance' in all_results[0]:
+            ax.axhline(
+                y=all_results[0]['initial_balance'],
+                color='black', linestyle='--', linewidth=1, alpha=0.5
+            )
         
         # Add legend after all elements
         ax.legend(loc='best')

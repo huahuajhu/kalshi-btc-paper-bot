@@ -95,9 +95,11 @@ def main():
         # Print strategy leaderboard
         MetricsCalculator.print_strategy_leaderboard(all_results)
         
-        # Print hour-by-hour breakdown for top strategy
+        # Print hour-by-hour breakdown for top strategy (highest PnL)
         if len(all_results) > 0:
-            top_strategy = all_results[0]  # Already sorted by PnL
+            # Sort by total PnL to find top strategy
+            sorted_results = sorted(all_results, key=lambda x: x['total_pnl'], reverse=True)
+            top_strategy = sorted_results[0]
             print(f"\nShowing hourly breakdown for top strategy: {top_strategy['strategy_name']}")
             MetricsCalculator.print_hourly_breakdown(top_strategy, max_rows=20)
     

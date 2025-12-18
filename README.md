@@ -63,7 +63,7 @@ The simulator implements Phase 2 market selection intelligence to pick the *righ
 
 3. **Volatility Consideration**:
    - Estimates recent BTC volatility (24h lookback)
-   - Used for informed strike distance selection
+   - Logged for analysis in selection metrics (not currently used in strike selection scoring)
 
 ### Output Files
 

@@ -196,14 +196,13 @@ class MarketSelector:
                 hour_start, strike, contract_prices, btc_prices
             )
             metrics['strike_price'] = strike
-            metrics['distance_from_spot'] = abs(strike - btc_spot_price)
             strike_metrics.append(metrics)
         
         # Convert to DataFrame for easier analysis
         metrics_df = pd.DataFrame(strike_metrics)
         
-        # Filter out low-liquidity markets
-        liquid_markets = metrics_df[metrics_df['volume_proxy'] >= min_volume_threshold]
+        # Filter out low-liquidity markets and create a copy to avoid SettingWithCopyWarning
+        liquid_markets = metrics_df[metrics_df['volume_proxy'] >= min_volume_threshold].copy()
         
         if liquid_markets.empty:
             # Fallback to closest strike if no liquid markets
@@ -219,46 +218,49 @@ class MarketSelector:
         
         # Score each liquid market
         # Lower spread is better, higher volume is better, higher reaction is better
-        liquid_markets = liquid_markets.copy()
         
         # Normalize metrics (0-1 scale)
-        if liquid_markets['avg_spread'].max() > 0:
-            liquid_markets['spread_score'] = 1 - (
-                liquid_markets['avg_spread'] / liquid_markets['avg_spread'].max()
+        spread_max = liquid_markets['avg_spread'].max()
+        spread_min = liquid_markets['avg_spread'].min()
+        if spread_max > spread_min:
+            # Min-max normalization where lower spread is better
+            liquid_markets.loc[:, 'spread_score'] = 1 - (
+                (liquid_markets['avg_spread'] - spread_min) / (spread_max - spread_min)
             )
         else:
-            liquid_markets['spread_score'] = 1.0
+            # All spreads are equal (including all-zero); treat them as equally good
+            liquid_markets.loc[:, 'spread_score'] = 1.0
         
         max_volume = liquid_markets['volume_proxy'].max()
         min_volume = liquid_markets['volume_proxy'].min()
         if max_volume > 0:
             if max_volume == min_volume:
                 # All volumes equal and positive: assign neutral score for fairness
-                liquid_markets['volume_score'] = 0.5
+                liquid_markets.loc[:, 'volume_score'] = 0.5
             else:
-                liquid_markets['volume_score'] = (
+                liquid_markets.loc[:, 'volume_score'] = (
                     liquid_markets['volume_proxy'] / max_volume
                 )
         else:
             # Non-positive volumes: assign neutral score
-            liquid_markets['volume_score'] = 0.5
+            liquid_markets.loc[:, 'volume_score'] = 0.5
         
         if liquid_markets['price_reaction'].max() > 0:
             max_reaction = liquid_markets['price_reaction'].max()
             min_reaction = liquid_markets['price_reaction'].min()
             if max_reaction == min_reaction:
                 # All non-zero reactions are equal; assign a neutral score
-                liquid_markets['reaction_score'] = 0.5
+                liquid_markets.loc[:, 'reaction_score'] = 0.5
             else:
-                liquid_markets['reaction_score'] = (
+                liquid_markets.loc[:, 'reaction_score'] = (
                     liquid_markets['price_reaction'] / max_reaction
                 )
         else:
-            liquid_markets['reaction_score'] = 0.5
+            liquid_markets.loc[:, 'reaction_score'] = 0.5
         
         # Combine scores (weighted average)
         # Spread: 40%, Volume: 30%, Reaction: 30%
-        liquid_markets['total_score'] = (
+        liquid_markets.loc[:, 'total_score'] = (
             0.4 * liquid_markets['spread_score'] +
             0.3 * liquid_markets['volume_score'] +
             0.3 * liquid_markets['reaction_score']

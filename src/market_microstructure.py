@@ -98,6 +98,9 @@ class MarketMicrostructure:
         # Clamp to valid price range [0.01, 0.99]
         execution_price = np.clip(execution_price, 0.01, 0.99)
         
+        # Recompute slippage to reflect the actual (possibly clipped) execution price
+        slippage = float(abs(execution_price - price_with_spread))
+        
         spread_cost = half_spread
         
         return execution_price, spread_cost, slippage

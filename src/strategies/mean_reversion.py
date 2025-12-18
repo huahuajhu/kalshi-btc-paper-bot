@@ -32,7 +32,13 @@ class MeanReversionStrategy(Strategy):
         self.window_minutes = window_minutes
         self.threshold = threshold
         self.max_position_pct = max_position_pct
+        self.has_traded = False  # Track if we've already traded this hour
         
+    def reset(self):
+        """Reset strategy state for a new trading hour."""
+        super().reset()
+        self.has_traded = False
+    
     def on_minute(self, 
                   timestamp: pd.Timestamp,
                   btc_price: float,
@@ -55,6 +61,10 @@ class MeanReversionStrategy(Strategy):
             (BUY_YES, quantity) if NO is overextended
             (HOLD, None) otherwise
         """
+        # Don't trade if we've already traded this hour
+        if self.has_traded:
+            return TradeAction.HOLD, None
+        
         # Need enough data for rolling window
         if len(self.history) < self.window_minutes:
             return TradeAction.HOLD, None
@@ -76,12 +86,14 @@ class MeanReversionStrategy(Strategy):
         if current_yes > yes_mean + self.threshold:
             quantity = self._calculate_quantity(portfolio, current_no)
             if quantity > 0:
+                self.has_traded = True  # Mark that we've traded
                 return TradeAction.BUY_NO, quantity
         
         # Check if NO is overextended (buy YES to bet against it)
         if current_no > no_mean + self.threshold:
             quantity = self._calculate_quantity(portfolio, current_yes)
             if quantity > 0:
+                self.has_traded = True  # Mark that we've traded
                 return TradeAction.BUY_YES, quantity
         
         return TradeAction.HOLD, None

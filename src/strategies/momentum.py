@@ -26,7 +26,13 @@ class MomentumStrategy(Strategy):
         super().__init__(name="Momentum")
         self.lookback_minutes = lookback_minutes
         self.max_position_pct = max_position_pct
+        self.has_traded = False  # Track if we've already traded this hour
         
+    def reset(self):
+        """Reset strategy state for a new trading hour."""
+        super().reset()
+        self.has_traded = False
+    
     def on_minute(self, 
                   timestamp: pd.Timestamp,
                   btc_price: float,
@@ -49,6 +55,10 @@ class MomentumStrategy(Strategy):
             (BUY_NO, quantity) if NO momentum detected
             (HOLD, None) otherwise
         """
+        # Don't trade if we've already traded this hour
+        if self.has_traded:
+            return TradeAction.HOLD, None
+        
         # Need at least lookback_minutes + 1 data points
         if len(self.history) <= self.lookback_minutes:
             return TradeAction.HOLD, None
@@ -58,6 +68,7 @@ class MomentumStrategy(Strategy):
         if yes_momentum:
             quantity = self._calculate_quantity(portfolio, is_yes=True)
             if quantity > 0:
+                self.has_traded = True  # Mark that we've traded
                 return TradeAction.BUY_YES, quantity
         
         # Check for NO momentum
@@ -65,6 +76,7 @@ class MomentumStrategy(Strategy):
         if no_momentum:
             quantity = self._calculate_quantity(portfolio, is_yes=False)
             if quantity > 0:
+                self.has_traded = True  # Mark that we've traded
                 return TradeAction.BUY_NO, quantity
         
         return TradeAction.HOLD, None

@@ -50,3 +50,4 @@ htmlcov/
 *.log
 *.tmp
 tmp/
+test_*.py

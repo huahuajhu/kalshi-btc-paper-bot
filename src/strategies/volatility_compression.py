@@ -1,7 +1,6 @@
 """Volatility Compression trading strategy."""
 
 import pandas as pd
-import numpy as np
 from typing import Optional
 from .base import Strategy, TradeAction
 

@@ -113,7 +113,7 @@ class TrendContinuationStrategy(Strategy):
         # Normalize by average price to get percentage trend
         avg_price = np.mean(prices)
         if avg_price > 0:
-            normalized_slope = slope / avg_price * len(prices)
+            normalized_slope = slope / avg_price
         else:
             normalized_slope = 0.0
         

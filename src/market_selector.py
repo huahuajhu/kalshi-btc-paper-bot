@@ -164,7 +164,10 @@ class MarketSelector:
            - Tighter spreads (lower avg_spread)
            - Higher volume (higher volume_proxy)
            - Better price reaction (higher price_reaction)
-        3. Consider volatility to choose appropriate strike distance
+        
+        Note:
+            A volatility estimate is computed and logged for analysis, but it does not
+            currently influence the strike selection logic.
         
         Args:
             hour_start: Start of the trading hour

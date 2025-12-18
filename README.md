@@ -86,6 +86,24 @@ timestamp,btc_price,btc_return_5m,btc_return_15m,yes_price,no_price,spread,volat
 - `volatility`: Rolling standard deviation of BTC returns
 - `label`: Market outcome (1=YES wins, 0=NO wins)
 
+**Example ML Usage:**
+
+See `example_ml.py` for a demonstration of using the dataset with scikit-learn:
+
+```bash
+# Install sklearn if not already installed
+pip install scikit-learn
+
+# Run the example
+python example_ml.py
+```
+
+This example shows how to:
+- Load and prepare the dataset
+- Train a simple Random Forest classifier
+- Evaluate model performance
+- Analyze feature importance
+
 ## Project Structure
 
 ```
@@ -117,6 +135,7 @@ kalshi-btc-paper-bot/
 │
 ├── main.py                        # Entry point
 ├── generate_dataset.py            # ML dataset generator
+├── example_ml.py                  # ML usage example
 ├── requirements.txt               # Python dependencies
 └── README.md                      # This file
 ```

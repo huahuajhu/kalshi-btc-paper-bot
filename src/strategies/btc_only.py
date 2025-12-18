@@ -86,7 +86,7 @@ class BtcOnlyStrategy(Strategy):
             quantity = int(max_quantity)
             
             if quantity > 0:
-                self.has_traded = True
+                self.has_traded = True  # Only mark as traded if we actually trade
                 return TradeAction.BUY_YES, quantity
         
         elif is_falling:
@@ -97,7 +97,8 @@ class BtcOnlyStrategy(Strategy):
             quantity = int(max_quantity)
             
             if quantity > 0:
-                self.has_traded = True
+                self.has_traded = True  # Only mark as traded if we actually trade
                 return TradeAction.BUY_NO, quantity
         
+        # Don't set has_traded if no trade made - allow retry if cash becomes available
         return TradeAction.HOLD, None

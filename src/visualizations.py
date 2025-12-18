@@ -1,6 +1,7 @@
 """Visualization module for strategy comparison and alpha analysis."""
 
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 from typing import List, Dict
 from pathlib import Path
@@ -50,7 +51,7 @@ class StrategyVisualizer:
         df['alpha_return'] = df['return_pct'] - baseline_return
         
         # Create figure with multiple subplots
-        fig = plt.figure(figsize=(16, 12))
+        plt.figure(figsize=(16, 12))
         
         # 1. Total PnL Comparison
         ax1 = plt.subplot(3, 3, 1)
@@ -127,22 +128,22 @@ class StrategyVisualizer:
         ax8.set_title('Maximum Drawdown by Strategy')
         ax8.grid(True, alpha=0.3)
         
-        # 9. Risk-Adjusted Return (Return / Max Drawdown)
+        # 9. Risk-Adjusted Return (Calmar Ratio)
         ax9 = plt.subplot(3, 3, 9)
         # Calculate Calmar ratio (Return / Max Drawdown)
-        # Avoid division by zero and handle very small drawdowns in a symmetric way
+        # Handle edge cases: zero/negative drawdown, very small drawdowns
         def _calmar_ratio(row: pd.Series) -> float:
             dd = row['max_drawdown']
             ret = row['return_pct']
-            # If drawdown is non-positive, Calmar ratio is undefined
+            # If drawdown is zero or negative, Calmar ratio is undefined
             if dd <= 0:
                 return np.nan
-            # Use a minimum threshold for drawdown to avoid exploding ratios
+            # Use minimum threshold to avoid exploding ratios
             dd = max(dd, 0.01)
             return ret / dd
 
         risk_adjusted = df.apply(_calmar_ratio, axis=1)
-        colors = ['green' if x >= 0 else 'red' for x in risk_adjusted]
+        colors = ['green' if pd.notna(x) and x >= 0 else 'red' for x in risk_adjusted]
         ax9.barh(strategies, risk_adjusted, color=colors, alpha=0.7)
         ax9.axvline(x=0, color='black', linestyle='-', linewidth=0.5)
         ax9.set_xlabel('Calmar Ratio')

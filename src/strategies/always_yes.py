@@ -67,7 +67,8 @@ class AlwaysYesStrategy(Strategy):
         quantity = int(max_quantity)
         
         if quantity > 0:
-            self.has_traded = True
+            self.has_traded = True  # Only mark as traded if we actually trade
             return TradeAction.BUY_YES, quantity
         
+        # Don't set has_traded if quantity is 0 - allow retry if cash becomes available
         return TradeAction.HOLD, None

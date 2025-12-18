@@ -24,13 +24,15 @@ class RandomStrategy(Strategy):
         super().__init__(name="Random")
         self.max_position_pct = max_position_pct
         self.seed = seed
-        random.seed(seed)
+        self.rng = random.Random(seed)  # Use instance-level random generator
         self.has_traded = False  # Track if we've already traded this hour
         
     def reset(self):
         """Reset strategy state for a new trading hour."""
         super().reset()
         self.has_traded = False
+        # Reset random state for reproducibility across runs
+        self.rng = random.Random(self.seed)
     
     def on_minute(self, 
                   timestamp: pd.Timestamp,
@@ -62,10 +64,10 @@ class RandomStrategy(Strategy):
         
         # Randomly choose action on first minute
         current = self.history[-1]
-        action_choice = random.choice([TradeAction.BUY_YES, TradeAction.BUY_NO, TradeAction.HOLD])
+        action_choice = self.rng.choice([TradeAction.BUY_YES, TradeAction.BUY_NO, TradeAction.HOLD])
         
         if action_choice == TradeAction.HOLD:
-            self.has_traded = True
+            self.has_traded = True  # For HOLD, mark as traded to avoid retry
             return TradeAction.HOLD, None
         
         # Calculate quantity
@@ -79,8 +81,8 @@ class RandomStrategy(Strategy):
         quantity = int(max_quantity)
         
         if quantity > 0:
-            self.has_traded = True
+            self.has_traded = True  # Only mark as traded if we actually trade
             return action_choice, quantity
         
-        self.has_traded = True
+        # Don't set has_traded if quantity is 0 - allow retry if cash becomes available
         return TradeAction.HOLD, None

@@ -72,16 +72,16 @@ def _extract_strike(market: dict) -> Optional[float]:
 
 def _extract_yes_price(market: dict) -> Optional[float]:
     """Infer a YES price from market fields."""
+    yes_bid = _normalize_price(market.get("yes_bid"))
+    yes_ask = _normalize_price(market.get("yes_ask"))
+    if yes_bid is not None and yes_ask is not None:
+        return (yes_bid + yes_ask) / 2
+
     for field in YES_PRICE_FIELDS:
         if field in market and market[field] is not None:
             price = _normalize_price(market[field])
             if price is not None:
                 return price
-
-    yes_bid = _normalize_price(market.get("yes_bid"))
-    yes_ask = _normalize_price(market.get("yes_ask"))
-    if yes_bid is not None and yes_ask is not None:
-        return (yes_bid + yes_ask) / 2
 
     return None
 
@@ -107,6 +107,10 @@ def _append_csv(df: pd.DataFrame, path: Path, dedup_cols: Iterable[str], sort_co
 
 def fetch_btc_prices_for_day(target_date: date, symbol: str = "BTCUSDT") -> pd.DataFrame:
     """Fetch minute-level BTC prices for a single UTC day from Binance."""
+    today_utc = datetime.now(tz=UTC).date()
+    if target_date > today_utc:
+        raise RuntimeError(f"Target date {target_date} is in the future; no {symbol} data available yet.")
+
     start = datetime.combine(target_date, MIDNIGHT, tzinfo=UTC)
     end = min(start + timedelta(days=1), datetime.now(tz=UTC))
 
@@ -133,14 +137,19 @@ def fetch_btc_prices_for_day(target_date: date, symbol: str = "BTCUSDT") -> pd.D
 
         for entry in klines:
             open_time = datetime.fromtimestamp(entry[0] / 1000, tz=UTC)
-            if open_time.date() != target_date or open_time >= end:
+            if open_time.date() != target_date:
                 continue
+            if open_time >= end:
+                break
             close_price = float(entry[4])
             rows.append({"timestamp": _format_ts(open_time), "price": close_price})
 
         # Advance cursor using the last open time.
         last_open = datetime.fromtimestamp(klines[-1][0] / 1000, tz=UTC)
-        cursor = last_open + timedelta(minutes=1)
+        next_cursor = last_open + timedelta(minutes=1)
+        if next_cursor <= cursor:
+            break
+        cursor = next_cursor
 
     if not rows:
         return pd.DataFrame(columns=["timestamp", "price"])
@@ -150,7 +159,8 @@ def fetch_btc_prices_for_day(target_date: date, symbol: str = "BTCUSDT") -> pd.D
     return btc_df
 
 
-def _is_btc_market(market: dict) -> bool:
+def _contains_btc_keywords(market: dict) -> bool:
+    """Heuristic keyword match for BTC markets (may include false positives)."""
     text = " ".join(
         str(market.get(key, "")) for key in ("ticker", "event_ticker", "underlying_ticker", "title", "description")
     ).upper()
@@ -159,6 +169,10 @@ def _is_btc_market(market: dict) -> bool:
 
 def fetch_kalshi_market_data(target_date: date, base_url: Optional[str] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Fetch Kalshi BTC hourly markets and snapshot YES/NO prices for the given day."""
+    today_utc = datetime.now(tz=UTC).date()
+    if target_date > today_utc:
+        raise RuntimeError(f"Target date {target_date} is in the future; no Kalshi market data available yet.")
+
     base = (base_url or os.getenv("KALSHI_API_BASE") or KALSHI_BASE_URL).rstrip("/")
     token = os.getenv("KALSHI_API_TOKEN")
 
@@ -180,7 +194,7 @@ def fetch_kalshi_market_data(target_date: date, base_url: Optional[str] = None) 
     fetched_at = datetime.now(tz=UTC)
 
     for market in markets:
-        if not _is_btc_market(market):
+        if not _contains_btc_keywords(market):
             continue
 
         hour_start = _parse_ts(
@@ -200,8 +214,9 @@ def fetch_kalshi_market_data(target_date: date, base_url: Optional[str] = None) 
         if yes_price is None:
             continue
 
-        yes_price = round(yes_price, 4)
-        no_price = round(1 - yes_price, 4)
+        raw_yes_price = yes_price
+        yes_price = round(raw_yes_price, 4)
+        no_price = round(1 - raw_yes_price, 4)
 
         market_rows.append(
             {
@@ -299,14 +314,18 @@ def _validate_contract_prices(df: pd.DataFrame) -> None:
     price_sum = df["yes_price"] + df["no_price"]
     valid_mask = price_sum.between(1 - PRICE_TOLERANCE, 1 + PRICE_TOLERANCE)
     if not valid_mask.all():
-        bad_row = df.loc[~valid_mask].iloc[0]
+        invalid_rows = df.loc[~valid_mask]
+        bad_row = invalid_rows.iloc[0]
+        total_invalid = len(invalid_rows)
         raise ValueError(
-            f"YES + NO must ≈ 1.00. Example row -> YES: {bad_row['yes_price']}, NO: {bad_row['no_price']}"
+            "YES + NO must ≈ 1.00. "
+            f"Invalid rows: {total_invalid}. "
+            f"Example row -> YES: {bad_row['yes_price']}, NO: {bad_row['no_price']}"
         )
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Collect today's BTC + Kalshi market data.")
+    parser = argparse.ArgumentParser(description="Collect BTC + Kalshi market data for today or a specified date (UTC).")
     parser.add_argument("--date", type=str, help="UTC date to collect (YYYY-MM-DD). Defaults to today (UTC).")
     parser.add_argument("--btc-file", type=Path, default=Path("data/btc_prices_minute.csv"), help="BTC output CSV path.")
     parser.add_argument("--markets-file", type=Path, default=Path("data/kalshi_markets.csv"), help="Kalshi markets CSV path.")

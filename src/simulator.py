@@ -195,7 +195,7 @@ class Simulator:
                 })
             
             # Execute trades that have passed the latency delay
-            # Process pending decisions more efficiently
+            # Filter pending decisions into executable and remaining based on latency delay
             executable_decisions = []
             remaining_decisions = []
             

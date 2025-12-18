@@ -50,3 +50,7 @@ htmlcov/
 *.log
 *.tmp
 tmp/
+
+# Output files
+output/
+*.png

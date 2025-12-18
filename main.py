@@ -12,7 +12,12 @@ from src.simulator import Simulator
 from src.strategies.no_trade import NoTradeStrategy
 from src.strategies.momentum import MomentumStrategy
 from src.strategies.mean_reversion import MeanReversionStrategy
+from src.strategies.always_yes import AlwaysYesStrategy
+from src.strategies.always_no import AlwaysNoStrategy
+from src.strategies.random_trade import RandomStrategy
+from src.strategies.btc_only import BtcOnlyStrategy
 from src.metrics import MetricsCalculator
+from src.visualizations import StrategyVisualizer
 
 
 def main():
@@ -47,9 +52,16 @@ def main():
     
     # Define strategies to test
     strategies = [
+        # Original strategies
         NoTradeStrategy(),
         MomentumStrategy(lookback_minutes=3, max_position_pct=config.max_position_pct),
-        MeanReversionStrategy(window_minutes=10, threshold=0.05, max_position_pct=config.max_position_pct)
+        MeanReversionStrategy(window_minutes=10, threshold=0.05, max_position_pct=config.max_position_pct),
+        
+        # Baseline strategies for counterfactual testing (Phase 5)
+        AlwaysYesStrategy(max_position_pct=config.max_position_pct),
+        AlwaysNoStrategy(max_position_pct=config.max_position_pct),
+        RandomStrategy(max_position_pct=config.max_position_pct, seed=42),
+        BtcOnlyStrategy(lookback_minutes=3, max_position_pct=config.max_position_pct),
     ]
     
     # Run simulations
@@ -83,6 +95,16 @@ def main():
         comparison = MetricsCalculator.create_comparison_table(all_results)
         print(comparison.to_string(index=False))
         print()
+        
+        # Generate alpha comparison charts (Phase 5)
+        print("\n" + "=" * 60)
+        print("Generating Alpha Comparison Charts")
+        print("=" * 60)
+        StrategyVisualizer.create_alpha_comparison_charts(
+            all_results=all_results,
+            baseline_name="NoTrade",
+            output_dir="output"
+        )
     
     print("\nSimulation complete!")
 

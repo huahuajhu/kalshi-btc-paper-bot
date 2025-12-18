@@ -14,8 +14,8 @@ class Position:
     entry_price: float
     entry_time: pd.Timestamp
     strike_price: float
-    spread_cost: float = 0.0  # Track spread cost paid
-    slippage: float = 0.0  # Track slippage incurred
+    spread_cost: float = 0.0  # Track spread cost paid per contract
+    slippage: float = 0.0  # Track slippage incurred per contract
 
 
 class Portfolio:

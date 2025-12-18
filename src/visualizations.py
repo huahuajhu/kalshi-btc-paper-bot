@@ -1,7 +1,6 @@
 """Visualization module for strategy comparison and alpha analysis."""
 
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 from typing import List, Dict
 from pathlib import Path

@@ -8,6 +8,7 @@ from .market_selector import MarketSelector
 from .contract_pricing import ContractPricer
 from .portfolio import Portfolio
 from .strategies.base import Strategy, TradeAction
+from .explainability import ExplainabilityEngine
 
 
 class Simulator:
@@ -68,13 +69,17 @@ class Simulator:
         unique_hours = markets['hour_start'].unique()
         unique_hours = sorted(unique_hours)
         
+        # Initialize explainability engine
+        explainability = ExplainabilityEngine()
+        
         results = {
             'strategy_name': strategy.name,
             'hours_traded': [],
             'initial_balance': self.config.starting_balance,
             'final_balance': None,
             'total_pnl': None,
-            'portfolio': portfolio
+            'portfolio': portfolio,
+            'explainability': explainability
         }
         
         # Loop over each hour

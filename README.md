@@ -10,7 +10,12 @@ This simulator allows you to backtest trading strategies on Kalshi's hourly BTC 
 
 - **Hourly Markets**: Each hour (e.g., 1pm-2pm) is a separate market
 - **Strike Buckets**: Markets are available at $250 price intervals
-- **Market Selection**: Automatically selects the closest strike to BTC spot price at hour start
+- **Intelligent Market Selection** (Phase 2): Smart strike selection based on:
+  - Expected volatility
+  - Market liquidity (volume proxy)
+  - YES/NO spread tightness
+  - Price reaction to BTC movements
+- **Market Selection Logging**: Detailed CSV log with selection rationale and metrics
 - **Minute-by-Minute Trading**: Simulates YES/NO price evolution every minute
 - **Multiple Strategies**: Compare different trading approaches
 - **Performance Metrics**: Track PnL, win rate, drawdown, and more
@@ -19,7 +24,13 @@ This simulator allows you to backtest trading strategies on Kalshi's hourly BTC 
 
 1. **At Hour Start (e.g., 13:00)**:
    - BTC spot price is sampled
-   - Closest strike price is selected from available markets
+   - Intelligent market selector analyzes all available strikes:
+     - Calculates spread (YES + NO price deviation from 1.00)
+     - Estimates volume proxy (sum of price changes)
+     - Measures price reaction (correlation with BTC price movements)
+     - Filters out low-liquidity markets
+     - Scores and selects the best market based on weighted criteria
+   - Fallback to closest strike if no liquid markets found
    - Market is active for 60 minutes
 
 2. **During the Hour (13:00-14:00)**:
@@ -32,6 +43,36 @@ This simulator allows you to backtest trading strategies on Kalshi's hourly BTC 
    - If BTC ≥ strike: YES wins ($1.00), NO loses ($0.00)
    - If BTC < strike: NO wins ($1.00), YES loses ($0.00)
    - PnL is calculated for all positions
+
+## Market Selection Intelligence
+
+The simulator implements Phase 2 market selection intelligence to pick the *right market* based on:
+
+### Selection Criteria (Priority Order)
+
+1. **Liquidity Filter**: Exclude markets with low trading activity
+   - Volume proxy < threshold (default: 0.01)
+
+2. **Market Quality Scoring** (for liquid markets):
+   - **Spread Score (40% weight)**: Lower spread = better
+     - Measures tightness of YES/NO prices
+   - **Volume Score (30% weight)**: Higher volume = better
+     - Proxy: sum of YES/NO price changes
+   - **Reaction Score (30% weight)**: Higher correlation = better
+     - Correlation between BTC price changes and contract price changes
+
+3. **Volatility Consideration**:
+   - Estimates recent BTC volatility (24h lookback)
+   - Used for informed strike distance selection
+
+### Output Files
+
+- **`data/market_selection_log.csv`**: Detailed log of every selection decision
+  - Columns: hour_start, btc_spot_price, selected_strike, selection_method, avg_spread, avg_volume_proxy, price_reaction_score, volatility_estimate, num_strikes_considered, reason
+  
+- **Market Selection Summary**: Printed after each strategy simulation
+  - Total selections, intelligent vs fallback selections
+  - Average spread, volume, reaction, and volatility metrics
 
 ## Installation
 
@@ -56,6 +97,17 @@ The simulator will:
 1. Load BTC prices, markets, and contract prices from `data/`
 2. Run simulations for all strategies
 3. Print performance metrics and comparison table
+4. Generate `data/market_selection_log.csv` with detailed selection decisions
+
+### Example Output
+
+```
+Market Selection Summary:
+ total_selections  intelligent_selections  fallback_selections  avg_spread  avg_volume_proxy  avg_price_reaction  avg_volatility
+                9                       9                    0         0.0         10.786667            0.458366        0.000546
+
+Market selection log saved to: data/market_selection_log.csv
+```
 
 ## Project Structure
 

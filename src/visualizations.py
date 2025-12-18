@@ -130,13 +130,18 @@ class StrategyVisualizer:
         # 9. Risk-Adjusted Return (Return / Max Drawdown)
         ax9 = plt.subplot(3, 3, 9)
         # Calculate Calmar ratio (Return / Max Drawdown)
-        # Avoid division by zero and handle very small drawdowns
-        risk_adjusted = df.apply(
-            lambda row: row['return_pct'] / row['max_drawdown'] 
-                        if row['max_drawdown'] > 0.01  # Only calculate if drawdown > 0.01%
-                        else (row['return_pct'] if row['return_pct'] > 0 else 0),  # If no drawdown, use return if positive
-            axis=1
-        )
+        # Avoid division by zero and handle very small drawdowns in a symmetric way
+        def _calmar_ratio(row: pd.Series) -> float:
+            dd = row['max_drawdown']
+            ret = row['return_pct']
+            # If drawdown is non-positive, Calmar ratio is undefined
+            if dd <= 0:
+                return np.nan
+            # Use a minimum threshold for drawdown to avoid exploding ratios
+            dd = max(dd, 0.01)
+            return ret / dd
+
+        risk_adjusted = df.apply(_calmar_ratio, axis=1)
         colors = ['green' if x >= 0 else 'red' for x in risk_adjusted]
         ax9.barh(strategies, risk_adjusted, color=colors, alpha=0.7)
         ax9.axvline(x=0, color='black', linestyle='-', linewidth=0.5)

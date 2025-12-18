@@ -57,6 +57,27 @@ The simulator will:
 2. Run simulations for all strategies
 3. Print performance metrics and comparison table
 
+## Daily Data Collection
+
+Collect today's BTC minute prices and Kalshi BTC hourly market snapshots:
+
+```bash
+# Optional: set your Kalshi API token for market data
+export KALSHI_API_TOKEN="your_token_here"
+
+python -m src.data_pipeline
+```
+
+Options:
+- `--date YYYY-MM-DD` to backfill a specific UTC date
+- `--skip-btc` or `--skip-kalshi` to disable one side of the pipeline
+- `--btc-file`, `--markets-file`, `--contracts-file` to override output paths
+
+Output files (appended and de-duplicated):
+- `data/btc_prices_minute.csv` (`timestamp,price`)
+- `data/kalshi_markets.csv` (`hour_start,strike_price`)
+- `data/kalshi_contract_prices.csv` (`timestamp,strike_price,yes_price,no_price`)
+
 ## Project Structure
 
 ```

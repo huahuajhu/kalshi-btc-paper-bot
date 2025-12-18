@@ -54,3 +54,5 @@ tmp/
 # Output files
 output/
 *.png
+# Generated data files
+data/market_selection_log.csv

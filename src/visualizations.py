@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 from typing import List, Dict
 from pathlib import Path
 
+from src.metrics import MetricsCalculator
+
 
 class StrategyVisualizer:
     """
@@ -30,7 +32,6 @@ class StrategyVisualizer:
         # Calculate metrics for all strategies
         metrics_list = []
         for result in all_results:
-            from src.metrics import MetricsCalculator
             metrics = MetricsCalculator.calculate_metrics(result)
             metrics_list.append(metrics)
         
@@ -129,15 +130,18 @@ class StrategyVisualizer:
         
         # 9. Risk-Adjusted Return (Return / Max Drawdown)
         ax9 = plt.subplot(3, 3, 9)
-        # Avoid division by zero
+        # Calculate Calmar ratio (Return / Max Drawdown)
+        # Avoid division by zero and handle very small drawdowns
         risk_adjusted = df.apply(
-            lambda row: row['return_pct'] / row['max_drawdown'] if row['max_drawdown'] > 0 else 0,
+            lambda row: row['return_pct'] / row['max_drawdown'] 
+                        if row['max_drawdown'] > 0.01  # Only calculate if drawdown > 0.01%
+                        else (row['return_pct'] if row['return_pct'] > 0 else 0),  # If no drawdown, use return if positive
             axis=1
         )
         colors = ['green' if x >= 0 else 'red' for x in risk_adjusted]
         ax9.barh(strategies, risk_adjusted, color=colors, alpha=0.7)
         ax9.axvline(x=0, color='black', linestyle='-', linewidth=0.5)
-        ax9.set_xlabel('Risk-Adjusted Return')
+        ax9.set_xlabel('Calmar Ratio')
         ax9.set_title('Risk-Adjusted Return\n(Return % / Max Drawdown %)')
         ax9.grid(True, alpha=0.3)
         
@@ -249,10 +253,14 @@ class StrategyVisualizer:
         ax.set_xlabel('Trading Hour')
         ax.set_ylabel('Portfolio Value ($)')
         ax.set_title('Equity Curves: Portfolio Value Over Time')
-        ax.legend(loc='best')
         ax.grid(True, alpha=0.3)
+        
+        # Add starting balance reference line
         ax.axhline(y=all_results[0]['initial_balance'], 
-                   color='black', linestyle='--', linewidth=1, alpha=0.5, label='Starting Balance')
+                   color='black', linestyle='--', linewidth=1, alpha=0.5)
+        
+        # Add legend after all elements
+        ax.legend(loc='best')
         
         output_path = Path(output_dir) / 'equity_curves.png'
         plt.savefig(output_path, dpi=300, bbox_inches='tight')

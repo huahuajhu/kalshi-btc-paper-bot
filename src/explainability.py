@@ -9,6 +9,7 @@ This module provides:
 """
 
 import pandas as pd
+import numpy as np
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from collections import defaultdict
@@ -188,11 +189,6 @@ class ExplainabilityEngine:
         payout = trade['payout']
         pnl = trade['pnl']
         
-        # Entry PnL: value from getting a good entry price
-        # If entry price was low (e.g., 0.3), the potential gain is high (0.7)
-        # If entry price was high (e.g., 0.7), the potential gain is low (0.3)
-        
-        
         # Entry quality: how much better than fair value
         # Avoid division by zero if entry_price equals FAIR_VALUE_PRICE
         if abs(entry_price - FAIR_VALUE_PRICE) < EPSILON:
@@ -201,9 +197,6 @@ class ExplainabilityEngine:
         else:
             # Positive quality = cheaper than fair value (better entry), negative = more expensive
             entry_quality = (FAIR_VALUE_PRICE - entry_price) / FAIR_VALUE_PRICE  # Range: -1 to 1
-
-
-
         
         # Calculate entry PnL based on quality (independent of outcome)
         entry_pnl = entry_quality * abs(pnl)
@@ -338,6 +331,9 @@ class ExplainabilityEngine:
                         return "Wrong direction (medium miss)"
                     else:
                         return "Wrong direction (close call)"
+                else:
+                    # Data inconsistency: YES lost but final_btc >= strike
+                    return "Data inconsistency (YES lost but BTC >= strike)"
             else:  # NO
                 # NO lost, meaning BTC >= strike
                 if final_btc >= strike:
@@ -348,6 +344,9 @@ class ExplainabilityEngine:
                         return "Wrong direction (medium miss)"
                     else:
                         return "Wrong direction (close call)"
+                else:
+                    # Data inconsistency: NO lost but final_btc < strike
+                    return "Data inconsistency (NO lost but BTC < strike)"
         
         # Price-based classification
         if entry_price > EXPENSIVE_ENTRY_THRESHOLD:

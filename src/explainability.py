@@ -192,8 +192,7 @@ class ExplainabilityEngine:
         # Entry PnL: value from getting a good entry price
         # If entry price was low (e.g., 0.3), the potential gain is high (0.7)
         # If entry price was high (e.g., 0.7), the potential gain is low (0.3)
-        max_potential_gain = (1.0 - entry_price) * trade['quantity']
-        max_potential_loss = entry_price * trade['quantity']
+        
         
         # Entry quality: how much better than fair value
         # Avoid division by zero if entry_price equals FAIR_VALUE_PRICE

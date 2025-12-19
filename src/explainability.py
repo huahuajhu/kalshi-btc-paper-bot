@@ -159,7 +159,7 @@ class ExplainabilityEngine:
         
         # Normalize importance scores to 0-1
         if importance:
-            max_importance = max(importance.values()) if importance.values() else 1.0
+            max_importance = max(importance.values())
             if max_importance > 0:
                 importance = {k: v / max_importance for k, v in importance.items()}
         

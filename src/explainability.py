@@ -17,7 +17,6 @@ from collections import defaultdict
 # Constants for analysis thresholds
 FAIR_VALUE_PRICE = 0.5  # Fair value for binary contracts
 EXPENSIVE_ENTRY_THRESHOLD = 0.7  # Price above which entry is considered expensive
-ABOVE_FAIR_VALUE_THRESHOLD = 0.5  # Threshold for above fair value entry
 
 # BTC price movement thresholds for failure classification
 LARGE_MISS_THRESHOLD = 500  # USD distance from strike for "large miss"
@@ -351,7 +350,7 @@ class ExplainabilityEngine:
         # Price-based classification
         if entry_price > EXPENSIVE_ENTRY_THRESHOLD:
             return "Expensive entry (low reward/risk)"
-        elif entry_price > ABOVE_FAIR_VALUE_THRESHOLD:
+        elif entry_price > FAIR_VALUE_PRICE:
             return "Above fair value entry"
         else:
             return "Market moved against position"

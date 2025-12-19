@@ -129,13 +129,21 @@ class ExplainabilityEngine:
         
         # Trade timing (entry time during the hour)
         if len(pnl_df) > 0 and 'entry_time' in pnl_df.columns:
-            winning_trades = pnl_df[pnl_df['pnl'] > 0]
-            
-            if len(winning_trades) > 0 and len(pnl_df) > 1:
-                # Analyze if certain entry times lead to better outcomes
-                # For simplicity, calculate variance in entry times for wins vs losses
-                timing_importance = min(1.0, len(winning_trades) / len(pnl_df))
-                importance['trade_timing'] = timing_importance
+            # Analyze whether entry time is systematically related to PnL
+            entry_times = pd.to_datetime(pnl_df['entry_time'], errors='coerce')
+            valid_mask = entry_times.notna() & pnl_df['pnl'].notna()
+
+            if valid_mask.sum() > 1 and entry_times[valid_mask].nunique() > 1:
+                # Convert entry times to numeric (nanoseconds since epoch) for correlation
+                entry_numeric = entry_times[valid_mask].view('int64')
+                pnl_values = pnl_df.loc[valid_mask, 'pnl'].astype(float)
+
+                # Correlation between entry time and PnL as a measure of timing importance
+                corr_matrix = np.corrcoef(entry_numeric, pnl_values)
+                corr = corr_matrix[0, 1] if corr_matrix.shape == (2, 2) else 0.0
+                if np.isnan(corr):
+                    corr = 0.0
+                importance['trade_timing'] = float(abs(corr))
             else:
                 importance['trade_timing'] = 0.0
         else:

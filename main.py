@@ -12,11 +12,16 @@ from src.simulator import Simulator
 from src.strategies.no_trade import NoTradeStrategy
 from src.strategies.momentum import MomentumStrategy
 from src.strategies.mean_reversion import MeanReversionStrategy
+from src.strategies.always_yes import AlwaysYesStrategy
+from src.strategies.always_no import AlwaysNoStrategy
+from src.strategies.random_trade import RandomStrategy
+from src.strategies.btc_only import BtcOnlyStrategy
 from src.strategies.opening_auction import OpeningAuctionStrategy
 from src.strategies.trend_continuation import TrendContinuationStrategy
 from src.strategies.volatility_compression import VolatilityCompressionStrategy
 from src.strategies.no_trade_filter import NoTradeFilterStrategy
 from src.metrics import MetricsCalculator
+from src.visualizations import StrategyVisualizer
 
 
 def main():
@@ -61,9 +66,16 @@ def main():
     
     # Define strategies to test
     strategies = [
+        # Original strategies
         NoTradeStrategy(),
         MomentumStrategy(lookback_minutes=3, max_position_pct=config.max_position_pct),
         MeanReversionStrategy(window_minutes=10, threshold=0.05, max_position_pct=config.max_position_pct),
+        
+        # Baseline strategies for counterfactual testing (Phase 5)
+        AlwaysYesStrategy(max_position_pct=config.max_position_pct),
+        AlwaysNoStrategy(max_position_pct=config.max_position_pct),
+        RandomStrategy(max_position_pct=config.max_position_pct, seed=42),
+        BtcOnlyStrategy(lookback_minutes=3, max_position_pct=config.max_position_pct),
         OpeningAuctionStrategy(opening_window_minutes=10, min_price_increase=0.02, max_position_pct=config.max_position_pct),
         TrendContinuationStrategy(confirmation_minutes=15, min_trend_strength=0.05, max_position_pct=config.max_position_pct),
         VolatilityCompressionStrategy(compression_window=20, compression_threshold=0.02, breakout_threshold=0.03, max_position_pct=config.max_position_pct),
@@ -107,6 +119,15 @@ def main():
         print(comparison.to_string(index=False))
         print()
         
+        # Generate alpha comparison charts (Phase 5)
+        print("\n" + "=" * 60)
+        print("Generating Alpha Comparison Charts")
+        print("=" * 60)
+        StrategyVisualizer.create_alpha_comparison_charts(
+            all_results=all_results,
+            baseline_name="NoTrade",
+            output_dir="output"
+        )
         # Print strategy leaderboard
         MetricsCalculator.print_strategy_leaderboard(all_results)
         

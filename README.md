@@ -152,19 +152,25 @@ kalshi-btc-paper-bot/
 │   ├── contract_pricing.py       # YES/NO price simulation
 │   ├── portfolio.py              # Position & PnL tracking
 │   ├── simulator.py              # Main simulation engine
-│   ├── metrics.py                # Performance metrics & leaderboard
+│   ├── metrics.py                # Performance metrics
+│   ├── visualizations.py         # Alpha comparison charts
 │   └── strategies/               # Trading strategies
 │       ├── base.py              # Abstract strategy class
 │       ├── momentum.py          # Momentum strategy
 │       ├── mean_reversion.py   # Mean reversion strategy
 │       ├── no_trade.py         # Baseline (no trades)
-│       ├── opening_auction.py  # Opening auction strategy
-│       ├── trend_continuation.py # Trend continuation strategy
-│       ├── volatility_compression.py # Volatility compression strategy
-│       └── no_trade_filter.py  # No-trade filter strategy
+│       ├── always_yes.py       # Always buy YES baseline
+│       ├── always_no.py        # Always buy NO baseline
+│       ├── random_trade.py     # Random trading baseline
+│       └── btc_only.py         # BTC-only signal baseline
 │
 ├── notebooks/                     # Analysis notebooks
 │   └── analysis.ipynb            # Performance analysis
+│
+├── output/                        # Generated visualizations
+│   ├── alpha_comparison.png     # Multi-panel comparison
+│   ├── performance_table.png    # Metrics summary table
+│   └── equity_curves.png        # Portfolio value over time
 │
 ├── main.py                        # Entry point
 ├── requirements.txt               # Python dependencies
@@ -199,6 +205,57 @@ kalshi-btc-paper-bot/
   - `threshold`: Deviation threshold (default: 0.05)
   - `max_position_pct`: Max % of portfolio per trade (default: 10%)
 
+## Phase 5: Counterfactual Testing Baselines
+
+These baseline strategies help answer "What should have happened?" by providing simple reference points for comparison.
+
+### 4. Always Buy YES
+- **Description**: Always buys YES contracts at the start of each hour
+- **Purpose**: Baseline for bullish bias testing
+- **Use Case**: Tests if simply betting BTC will go up is profitable
+
+### 5. Always Buy NO
+- **Description**: Always buys NO contracts at the start of each hour
+- **Purpose**: Baseline for bearish bias testing
+- **Use Case**: Tests if simply betting BTC won't go up is profitable
+
+### 6. Random Trading
+- **Description**: Randomly chooses to buy YES, NO, or hold at the start of each hour
+- **Purpose**: Statistical baseline for random behavior
+- **Use Case**: Ensures strategies beat random chance
+- **Parameters**:
+  - `seed`: Random seed for reproducibility (default: 42)
+
+### 7. BTC-Only Signal
+- **Description**: Trades based purely on BTC price movement, ignoring Kalshi prices
+- **Rules**:
+  - If BTC price rising for N minutes → BUY YES
+  - If BTC price falling for N minutes → BUY NO
+  - Otherwise → HOLD
+- **Purpose**: Tests if BTC momentum alone is predictive
+- **Use Case**: Isolates BTC signal from Kalshi pricing
+- **Parameters**:
+  - `lookback_minutes`: Number of minutes to check BTC trend (default: 3)
+
+## Visualization & Alpha Analysis
+
+The simulator now generates comprehensive alpha comparison charts in the `output/` directory:
+
+1. **alpha_comparison.png** - 9-panel comparison showing:
+   - Total PnL by strategy
+   - Return % by strategy
+   - Alpha vs baseline (PnL and Return %)
+   - Win rate comparison
+   - Total trades
+   - Average trade PnL
+   - Maximum drawdown
+   - Risk-adjusted returns
+
+2. **performance_table.png** - Color-coded performance summary table with all key metrics
+
+3. **equity_curves.png** - Portfolio value over time for all strategies
+
+These visualizations help identify which strategies generate **alpha** (excess returns) compared to simple baselines.
 ### 4. Opening Auction
 - **Description**: Trade during the first 5-10 minutes of each hour
 - **Rules**:

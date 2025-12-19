@@ -192,18 +192,15 @@ class ExplainabilityEngine:
         if abs(entry_price - FAIR_VALUE_PRICE) < EPSILON:
             # Entry at fair value has neutral quality
             entry_quality = 0.0
-        elif payout > 0:  # Winning trade
-            # Good entry = low price for winning position
-            entry_quality = (FAIR_VALUE_PRICE - entry_price) / FAIR_VALUE_PRICE  # Range: -1 to 1
-        else:  # Losing trade
-            # Bad entry = high price for losing position
-            entry_quality = (entry_price - FAIR_VALUE_PRICE) / FAIR_VALUE_PRICE  # Range: -1 to 1
-        
-        # Calculate entry PnL based on quality
-        if payout > 0:
-            entry_pnl = entry_quality * abs(pnl)
         else:
-            entry_pnl = -entry_quality * abs(pnl)
+            # Positive quality = cheaper than fair value (better entry), negative = more expensive
+            entry_quality = (FAIR_VALUE_PRICE - entry_price) / FAIR_VALUE_PRICE  # Range: -1 to 1
+
+
+
+        
+        # Calculate entry PnL based on quality (independent of outcome)
+        entry_pnl = entry_quality * abs(pnl)
         
         # Drift PnL: N/A for binary markets (no intra-trade price changes captured)
         drift_pnl = 0.0

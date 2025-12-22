@@ -50,6 +50,9 @@ htmlcov/
 *.log
 *.tmp
 tmp/
+
+# Generated datasets
+data/ml_dataset.csv
 test_*.py
 
 # Output files

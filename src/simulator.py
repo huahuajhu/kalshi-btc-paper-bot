@@ -1,7 +1,7 @@
 """Main simulator for paper trading."""
 
 import pandas as pd
-from typing import Dict
+from typing import Dict, Optional
 from .config import SimulationConfig
 from .data_loader import DataLoader
 from .market_selector import MarketSelector
@@ -9,6 +9,7 @@ from .contract_pricing import ContractPricer
 from .portfolio import Portfolio
 from .market_microstructure import MarketMicrostructure
 from .strategies.base import Strategy, TradeAction
+from .dataset_factory import DatasetFactory
 from .explainability import ExplainabilityEngine
 
 
@@ -41,17 +42,23 @@ class Simulator:
             btc_price_interval=config.btc_price_interval
         )
         self.contract_pricer = ContractPricer()
+        self.dataset_factory = None  # Optional dataset collector
         
-    def run(self, strategy: Strategy) -> Dict:
+    def run(self, strategy: Strategy, collect_dataset: bool = False) -> Dict:
         """
         Run simulation with a given strategy.
         
         Args:
             strategy: Trading strategy to use
+            collect_dataset: If True, collect ML-ready dataset during simulation
             
         Returns:
             Dictionary with simulation results
         """
+        # Initialize dataset factory if requested
+        if collect_dataset:
+            self.dataset_factory = DatasetFactory()
+        
         # Load data
         btc_prices = self.data_loader.load_btc_prices(
             start_date=self.config.start_date,
@@ -165,12 +172,14 @@ class Simulator:
         hour_contract_prices = contract_prices[contract_mask]
         
         trades_executed = []
+        btc_history = []  # Track BTC price history for dataset features
         pending_decisions = []  # Store decisions waiting for latency
         
         # Iterate minute-by-minute
         for timestamp in hour_btc_prices.index:
             # Get BTC price
             btc_price = hour_btc_prices.loc[timestamp, 'price']
+            btc_history.append(btc_price)
             
             # Get contract prices (YES/NO)
             contract_data = hour_contract_prices[
@@ -182,6 +191,18 @@ class Simulator:
             
             yes_price = contract_data.iloc[0]['yes_price']
             no_price = contract_data.iloc[0]['no_price']
+            
+            # Collect dataset if enabled
+            if self.dataset_factory is not None:
+                self.dataset_factory.collect_minute_data(
+                    timestamp=timestamp,
+                    btc_price=btc_price,
+                    yes_price=yes_price,
+                    no_price=no_price,
+                    strike_price=strike_price,
+                    hour_start=hour_start,
+                    btc_history=btc_history
+                )
             
             # Feed data to strategy
             strategy.on_minute(
@@ -269,6 +290,10 @@ class Simulator:
             # Use last available price in the hour
             final_btc_price = hour_btc_prices.iloc[-1]['price']
         
+        # Add labels to dataset if enabled
+        if self.dataset_factory is not None:
+            self.dataset_factory.add_labels(final_btc_price, strike_price, hour_start)
+        
         # Resolve positions
         hour_pnl = portfolio.resolve_positions(
             final_btc_price=final_btc_price,
@@ -285,3 +310,32 @@ class Simulator:
             'hour_pnl': hour_pnl,
             'portfolio_value': portfolio.cash
         }
+    
+    def save_dataset(self, output_path: str) -> None:
+        """
+        Save collected dataset to CSV file.
+        
+        Args:
+            output_path: Path to save the dataset CSV
+            
+        Raises:
+            ValueError: If dataset was not collected (collect_dataset=False)
+        """
+        if self.dataset_factory is None:
+            raise ValueError(
+                "Dataset not collected. Run simulation with collect_dataset=True"
+            )
+        
+        self.dataset_factory.save_csv(output_path)
+    
+    def get_dataset(self) -> Optional[pd.DataFrame]:
+        """
+        Get the collected dataset as a DataFrame.
+        
+        Returns:
+            DataFrame with ML-ready features, or None if not collected
+        """
+        if self.dataset_factory is None:
+            return None
+        
+        return self.dataset_factory.to_dataframe()

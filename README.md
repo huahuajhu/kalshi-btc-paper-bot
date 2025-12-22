@@ -19,6 +19,7 @@ This simulator allows you to backtest trading strategies on Kalshi's hourly BTC 
 - **Minute-by-Minute Trading**: Simulates YES/NO price evolution every minute
 - **Multiple Strategies**: Compare different trading approaches
 - **Performance Metrics**: Track PnL, win rate, drawdown, and more
+- **ML-Ready Dataset**: Generate labeled datasets for machine learning (Phase 7)
 - **📊 Explainability & Diagnostics**: Understand why strategies win or lose
   - Feature importance analysis
   - Trade attribution (entry vs drift vs exit)
@@ -140,6 +141,52 @@ Output files (appended and de-duplicated):
 - `data/kalshi_markets.csv` (`hour_start,strike_price`)
 - `data/kalshi_contract_prices.csv` (`timestamp,strike_price,yes_price,no_price`)
 
+### Generate ML-Ready Dataset
+
+To generate a labeled dataset suitable for machine learning:
+
+```bash
+python generate_dataset.py
+```
+
+This will:
+1. Run a simulation collecting minute-by-minute data
+2. Generate features: BTC returns (5m, 15m), contract prices, spread, volatility
+3. Add labels: binary outcome (1 if BTC ≥ strike, 0 otherwise)
+4. Save to `data/ml_dataset.csv`
+
+**Dataset Schema:**
+```csv
+timestamp,btc_price,btc_return_5m,btc_return_15m,yes_price,no_price,spread,volatility,strike_price,label
+```
+
+**Features:**
+- `btc_return_5m`: Percentage return over 5 minutes
+- `btc_return_15m`: Percentage return over 15 minutes
+- `yes_price`: Current YES contract price
+- `no_price`: Current NO contract price
+- `spread`: Absolute difference between YES and NO prices
+- `volatility`: Rolling standard deviation of BTC returns
+- `label`: Market outcome (1=YES wins, 0=NO wins)
+
+**Example ML Usage:**
+
+See `example_ml.py` for a demonstration of using the dataset with scikit-learn:
+
+```bash
+# Install sklearn if not already installed
+pip install scikit-learn
+
+# Run the example
+python example_ml.py
+```
+
+This example shows how to:
+- Load and prepare the dataset
+- Train a simple Random Forest classifier
+- Evaluate model performance
+- Analyze feature importance
+
 ## Project Structure
 
 ```
@@ -148,7 +195,8 @@ kalshi-btc-paper-bot/
 ├── data/                          # Market data
 │   ├── btc_prices_minute.csv     # Minute-level BTC prices
 │   ├── kalshi_markets.csv        # Hourly markets with strikes
-│   └── kalshi_contract_prices.csv # YES/NO price evolution
+│   ├── kalshi_contract_prices.csv # YES/NO price evolution
+│   └── ml_dataset.csv            # ML-ready dataset (generated)
 │
 ├── src/                           # Core modules
 │   ├── config.py                 # Configuration settings
@@ -158,6 +206,7 @@ kalshi-btc-paper-bot/
 │   ├── portfolio.py              # Position & PnL tracking
 │   ├── simulator.py              # Main simulation engine
 │   ├── metrics.py                # Performance metrics
+│   ├── dataset_factory.py        # ML dataset generation
 │   ├── explainability.py         # Explainability & diagnostics
 │   ├── visualizations.py         # Alpha comparison charts
 │   └── strategies/               # Trading strategies
@@ -179,6 +228,8 @@ kalshi-btc-paper-bot/
 │   └── equity_curves.png        # Portfolio value over time
 │
 ├── main.py                        # Entry point
+├── generate_dataset.py            # ML dataset generator
+├── example_ml.py                  # ML usage example
 ├── requirements.txt               # Python dependencies
 └── README.md                      # This file
 ```

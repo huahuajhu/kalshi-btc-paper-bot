@@ -21,6 +21,12 @@ class SimulationConfig:
     min_trade_price: float = 0.01  # Minimum contract price ($0.01)
     max_trade_price: float = 0.99  # Maximum contract price ($0.99)
     
+    # Market microstructure parameters (Phase 4)
+    bid_ask_spread: float = 0.02  # Bid-ask spread in price units (default: $0.02)
+    slippage_per_100_contracts: float = 0.01  # Price impact per 100 contracts
+    max_liquidity_per_minute: float = 500.0  # Max contracts tradeable per minute
+    latency_minutes: int = 1  # Reaction delay in minutes (1-2 minutes)
+    
     # Data paths
     btc_prices_path: str = "data/btc_prices_minute.csv"
     markets_path: str = "data/kalshi_markets.csv"
@@ -47,3 +53,11 @@ class SimulationConfig:
             raise ValueError("Market duration must be positive")
         if not 0 < self.min_trade_price < self.max_trade_price < 1:
             raise ValueError("Trade price bounds must be: 0 < min < max < 1")
+        if self.bid_ask_spread < 0:
+            raise ValueError("Bid-ask spread must be non-negative")
+        if self.slippage_per_100_contracts < 0:
+            raise ValueError("Slippage must be non-negative")
+        if self.max_liquidity_per_minute <= 0:
+            raise ValueError("Max liquidity per minute must be positive")
+        if self.latency_minutes < 0:
+            raise ValueError("Latency must be non-negative")

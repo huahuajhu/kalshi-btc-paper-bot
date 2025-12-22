@@ -1,8 +1,12 @@
 """Portfolio management for tracking positions and PnL."""
 
+from __future__ import annotations
 from dataclasses import dataclass
+from typing import Optional, TYPE_CHECKING
 import pandas as pd
 
+if TYPE_CHECKING:
+    from .market_microstructure import MarketMicrostructure
 
 @dataclass
 class Position:
@@ -12,6 +16,8 @@ class Position:
     entry_price: float
     entry_time: pd.Timestamp
     strike_price: float
+    spread_cost: float = 0.0  # Track spread cost paid per contract
+    slippage: float = 0.0  # Track slippage incurred per contract
 
 
 class Portfolio:
@@ -23,17 +29,22 @@ class Portfolio:
     - prevents over-allocation
     """
     
-    def __init__(self, starting_balance: float, fee_per_contract: float = 0.0):
+    def __init__(self, 
+                 starting_balance: float, 
+                 fee_per_contract: float = 0.0,
+                 market_microstructure: Optional[MarketMicrostructure] = None):
         """
         Initialize portfolio.
         
         Args:
             starting_balance: Initial cash balance
             fee_per_contract: Fee per contract traded
+            market_microstructure: Optional market microstructure model
         """
         self.initial_balance = starting_balance
         self.cash = starting_balance
         self.fee_per_contract = fee_per_contract
+        self.market_microstructure = market_microstructure
         self.positions = []  # List of Position objects
         self.trade_history = []  # List of all trades
         self.pnl_history = []  # Track PnL over time
@@ -58,42 +69,77 @@ class Portfolio:
                 timestamp: pd.Timestamp,
                 strike_price: float) -> bool:
         """
-        Buy YES contracts.
+        Buy YES contracts with market microstructure effects.
         
         Args:
             quantity: Number of contracts to buy
-            price: Price per YES contract
+            price: Mid-market price per YES contract
             timestamp: Time of purchase
             strike_price: Strike price of the market
             
         Returns:
-            True if trade executed, False if insufficient funds
+            True if trade executed, False if insufficient funds or liquidity
         """
-        if not self.can_afford(quantity, price):
+        # Apply market microstructure if available
+        if self.market_microstructure:
+            execution = self.market_microstructure.execute_trade(
+                timestamp=timestamp,
+                mid_price=price,
+                quantity=quantity,
+                side="buy"
+            )
+            
+            if not execution.executed:
+                return False
+            
+            # Use execution results
+            actual_quantity = execution.quantity_executed
+            actual_price = execution.execution_price
+            spread_cost = execution.spread_cost
+            slippage = execution.slippage
+        else:
+            # No microstructure: use mid price directly
+            actual_quantity = quantity
+            actual_price = price
+            spread_cost = 0.0
+            slippage = 0.0
+        
+        # Check affordability with actual execution price
+        if not self.can_afford(actual_quantity, actual_price):
+            # Roll back liquidity consumption if trade fails
+            if self.market_microstructure:
+                self.market_microstructure.rollback_liquidity(timestamp, actual_quantity)
             return False
         
         # Deduct cost and fees
-        total_cost = quantity * price + quantity * self.fee_per_contract
+        total_cost = actual_quantity * actual_price + actual_quantity * self.fee_per_contract
         self.cash -= total_cost
         
         # Create position
         position = Position(
             contract_type="YES",
-            quantity=quantity,
-            entry_price=price,
+            quantity=actual_quantity,
+            entry_price=actual_price,
             entry_time=timestamp,
-            strike_price=strike_price
+            strike_price=strike_price,
+            spread_cost=spread_cost,
+            slippage=slippage
         )
         self.positions.append(position)
         
         # Record trade
+        # Note: Both 'timestamp' and 'entry_timestamp' are kept for compatibility
+        # 'entry_timestamp' is used by metrics for duration calculations
         self.trade_history.append({
             'timestamp': timestamp,
+            'entry_timestamp': timestamp,
             'action': 'BUY_YES',
-            'quantity': quantity,
-            'price': price,
-            'fees': quantity * self.fee_per_contract,
-            'strike_price': strike_price
+            'quantity': actual_quantity,
+            'price': actual_price,
+            'fees': actual_quantity * self.fee_per_contract,
+            'strike_price': strike_price,
+            'spread_cost': spread_cost,
+            'slippage': slippage
         })
         
         return True
@@ -104,42 +150,77 @@ class Portfolio:
                timestamp: pd.Timestamp,
                strike_price: float) -> bool:
         """
-        Buy NO contracts.
+        Buy NO contracts with market microstructure effects.
         
         Args:
             quantity: Number of contracts to buy
-            price: Price per NO contract
+            price: Mid-market price per NO contract
             timestamp: Time of purchase
             strike_price: Strike price of the market
             
         Returns:
-            True if trade executed, False if insufficient funds
+            True if trade executed, False if insufficient funds or liquidity
         """
-        if not self.can_afford(quantity, price):
+        # Apply market microstructure if available
+        if self.market_microstructure:
+            execution = self.market_microstructure.execute_trade(
+                timestamp=timestamp,
+                mid_price=price,
+                quantity=quantity,
+                side="buy"
+            )
+            
+            if not execution.executed:
+                return False
+            
+            # Use execution results
+            actual_quantity = execution.quantity_executed
+            actual_price = execution.execution_price
+            spread_cost = execution.spread_cost
+            slippage = execution.slippage
+        else:
+            # No microstructure: use mid price directly
+            actual_quantity = quantity
+            actual_price = price
+            spread_cost = 0.0
+            slippage = 0.0
+        
+        # Check affordability with actual execution price
+        if not self.can_afford(actual_quantity, actual_price):
+            # Roll back liquidity consumption if trade fails
+            if self.market_microstructure:
+                self.market_microstructure.rollback_liquidity(timestamp, actual_quantity)
             return False
         
         # Deduct cost and fees
-        total_cost = quantity * price + quantity * self.fee_per_contract
+        total_cost = actual_quantity * actual_price + actual_quantity * self.fee_per_contract
         self.cash -= total_cost
         
         # Create position
         position = Position(
             contract_type="NO",
-            quantity=quantity,
-            entry_price=price,
+            quantity=actual_quantity,
+            entry_price=actual_price,
             entry_time=timestamp,
-            strike_price=strike_price
+            strike_price=strike_price,
+            spread_cost=spread_cost,
+            slippage=slippage
         )
         self.positions.append(position)
         
         # Record trade
+        # Note: Both 'timestamp' and 'entry_timestamp' are kept for compatibility
+        # 'entry_timestamp' is used by metrics for duration calculations
         self.trade_history.append({
             'timestamp': timestamp,
+            'entry_timestamp': timestamp,
             'action': 'BUY_NO',
-            'quantity': quantity,
-            'price': price,
-            'fees': quantity * self.fee_per_contract,
-            'strike_price': strike_price
+            'quantity': actual_quantity,
+            'price': actual_price,
+            'fees': actual_quantity * self.fee_per_contract,
+            'strike_price': strike_price,
+            'spread_cost': spread_cost,
+            'slippage': slippage
         })
         
         return True
@@ -182,6 +263,9 @@ class Portfolio:
             # Record resolution
             self.pnl_history.append({
                 'timestamp': resolution_time,
+                'entry_time': position.entry_time,
+                'exit_timestamp': resolution_time,
+                'entry_timestamp': position.entry_time,
                 'contract_type': position.contract_type,
                 'quantity': position.quantity,
                 'entry_price': position.entry_price,

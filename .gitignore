@@ -53,3 +53,10 @@ tmp/
 
 # Generated datasets
 data/ml_dataset.csv
+test_*.py
+
+# Output files
+output/
+*.png
+# Generated data files
+data/market_selection_log.csv

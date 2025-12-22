@@ -204,7 +204,7 @@ def generate_contract_prices(btc_df: pd.DataFrame, markets_df: pd.DataFrame) -> 
             
             # Calculate YES/NO prices
             yes_price, no_price = calculate_contract_prices(
-                btc_price, strike_price, time_remaining
+                btc_price, strike_price, int(time_remaining)
             )
             
             contract_prices.append({

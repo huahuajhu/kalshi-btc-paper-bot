@@ -51,3 +51,9 @@ htmlcov/
 *.tmp
 tmp/
 test_*.py
+
+# Output files
+output/
+*.png
+# Generated data files
+data/market_selection_log.csv

@@ -203,7 +203,7 @@ def append_to_csv(new_data: pd.DataFrame, filepath: str):
         # Combine and remove duplicates based on timestamp
         combined = pd.concat([existing_data, new_data], ignore_index=True)
         combined = combined.drop_duplicates(subset=['timestamp'], keep='last')
-        combined = combined.sort_values('timestamp')
+        combined = combined.sort_values('timestamp', key=lambda s: pd.to_datetime(s, errors='coerce', utc=True))
         
         # Save back
         combined.to_csv(filepath, index=False)

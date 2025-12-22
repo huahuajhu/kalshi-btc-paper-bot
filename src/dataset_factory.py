@@ -63,9 +63,9 @@ class DatasetFactory:
         btc_return_5m = self._calculate_return(btc_history, self.lookback_5m)
         btc_return_15m = self._calculate_return(btc_history, self.lookback_15m)
         
-        # Calculate spread (difference between YES and NO prices)
-        # Note: In Kalshi markets, YES + NO = 1.0, so spread shows market sentiment asymmetry
-        spread = abs(yes_price - no_price)
+        # Calculate spread (directional difference between YES and NO prices)
+        # Note: In Kalshi markets, YES + NO = 1.0, so the sign of spread shows which side is favored
+        spread = yes_price - no_price
         
         # Calculate volatility
         volatility = self._calculate_volatility(btc_history, self.volatility_window)

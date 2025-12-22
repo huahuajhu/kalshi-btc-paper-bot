@@ -19,6 +19,11 @@ This simulator allows you to backtest trading strategies on Kalshi's hourly BTC 
 - **Minute-by-Minute Trading**: Simulates YES/NO price evolution every minute
 - **Multiple Strategies**: Compare different trading approaches
 - **Performance Metrics**: Track PnL, win rate, drawdown, and more
+- **📊 Explainability & Diagnostics**: Understand why strategies win or lose
+  - Feature importance analysis
+  - Trade attribution (entry vs drift vs exit)
+  - Failure case clustering
+  - "Why did we lose money this hour?" diagnostic reports
 - **🆕 Phase 4: Market Microstructure Modeling**:
   - **Bid-ask spreads**: Realistic cost of crossing the spread
   - **Slippage model**: Price impact scales with order size
@@ -153,6 +158,7 @@ kalshi-btc-paper-bot/
 │   ├── portfolio.py              # Position & PnL tracking
 │   ├── simulator.py              # Main simulation engine
 │   ├── metrics.py                # Performance metrics
+│   ├── explainability.py         # Explainability & diagnostics
 │   ├── visualizations.py         # Alpha comparison charts
 │   └── strategies/               # Trading strategies
 │       ├── base.py              # Abstract strategy class
@@ -370,6 +376,78 @@ The simulator calculates:
 - **Total Trades**: Number of trades executed
 - **Hour-by-Hour PnL**: Breakdown of performance by trading hour
 - **Strategy Leaderboard**: Ranked comparison of all strategies
+
+## Explainability & Diagnostics
+
+The simulator includes comprehensive explainability features to understand strategy performance:
+
+### Feature Importance
+
+Analyzes which factors contributed most to performance:
+- **Entry Price Quality**: How good were the entry prices vs fair value (0.5)
+- **Market Direction Alignment**: How often the strategy correctly predicted market direction
+- **Trade Timing**: Impact of when during the hour trades were executed
+- **Position Sizing Discipline**: Consistency in position sizing
+
+Each feature is scored 0-100% and displayed with a visual bar chart.
+
+### Trade Attribution
+
+Breaks down PnL into components:
+- **Entry Quality**: PnL from getting good entry prices
+- **Market Drift**: PnL from price movements during holding (N/A for hourly binary markets)
+- **Exit/Outcome**: PnL from the binary market resolution
+
+This helps understand if profits came from skill (good entries) or luck (market outcomes).
+
+### Failure Case Analysis
+
+Identifies and clusters losing trades by reason:
+- Wrong direction (large/medium/close miss)
+- Expensive entry (low reward/risk)
+- Above fair value entry
+- Market moved against position
+
+Provides actionable insights on what went wrong and how often.
+
+### Hourly Diagnostic Reports
+
+For each losing hour, generates a detailed report showing:
+- Hour PnL and overall outcome
+- All trades executed with full attribution
+- Specific failure reasons for losing trades
+- BTC price movement during the hour
+
+Example output:
+```
+======================================================================
+Diagnostic Report: Hour 2025-01-01 14:00:00
+======================================================================
+Strategy: MeanReversion
+Hour PnL: $-1009.44
+Trades Executed: 1
+Strike Price: $86750.00
+BTC Start: $86636.04
+BTC End: $87224.99
+
+✗ LOSING HOUR (-$1009.44)
+
+Trade Analysis:
+----------------------------------------------------------------------
+
+Trade #1:
+  Type: NO
+  Entry Price: $0.480
+  Quantity: 2103 contracts
+  Outcome: LOSS
+  PnL: $-1009.44
+  
+  PnL Attribution:
+    Entry Quality: $+40.38
+    Market Drift: $+0.00
+    Exit/Outcome: $-1049.82
+  Failure Reason: Wrong direction (medium miss)
+```
 
 ## Example Output
 

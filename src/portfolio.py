@@ -263,6 +263,7 @@ class Portfolio:
             # Record resolution
             self.pnl_history.append({
                 'timestamp': resolution_time,
+                'entry_time': position.entry_time,
                 'exit_timestamp': resolution_time,
                 'entry_timestamp': position.entry_time,
                 'contract_type': position.contract_type,

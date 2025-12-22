@@ -5,6 +5,7 @@ This script:
 - Loads data
 - Runs simulator for each strategy
 - Prints comparison metrics
+- Generates explainability reports
 """
 
 from src.config import SimulationConfig
@@ -99,6 +100,35 @@ def main():
             metrics = MetricsCalculator.calculate_metrics(results)
             MetricsCalculator.print_metrics(metrics)
             
+            # Generate and print explainability report
+            if 'explainability' in results:
+                explainability = results['explainability']
+                portfolio = results['portfolio']
+                
+                # Generate summary report
+                summary_report = explainability.generate_summary_report(
+                    portfolio=portfolio,
+                    strategy=strategy,
+                    results=results
+                )
+                print(summary_report)
+                
+                # Generate hourly reports for losing hours
+                print("\n" + "=" * 70)
+                print("HOURLY DIAGNOSTIC REPORTS (Losing Hours)")
+                print("=" * 70)
+                
+                losing_hours = [h for h in results['hours_traded'] if h['hour_pnl'] < 0]
+                if losing_hours:
+                    for hour_result in losing_hours[:3]:  # Show first 3 losing hours
+                        hourly_report = explainability.generate_hourly_report(
+                            hour_result=hour_result,
+                            portfolio=portfolio,
+                            strategy=strategy
+                        )
+                        print(hourly_report)
+                else:
+                    print("\n✓ No losing hours to diagnose!\n")
             # Print market selection summary if available
             if 'market_selection_summary' in results and not results['market_selection_summary'].empty:
                 print("\nMarket Selection Summary:")

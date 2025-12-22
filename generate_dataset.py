@@ -73,8 +73,12 @@ def main():
             print(f"    YES wins (label=1): {(dataset['label'] == 1).sum()}")
             print(f"    NO wins (label=0): {(dataset['label'] == 0).sum()}")
             print(f"\n  Feature ranges:")
-            # Get feature columns from the factory
-            feature_cols = simulator.dataset_factory.get_feature_columns()
+            # Get feature columns from the factory, if available
+            feature_cols = []
+            if hasattr(simulator, "dataset_factory") and simulator.dataset_factory is not None:
+                feature_cols = simulator.dataset_factory.get_feature_columns()
+            else:
+                print("  (Feature columns unavailable: dataset factory is not initialized.)")
             for col in feature_cols:
                 if col in dataset.columns:
                     print(f"    {col}: [{dataset[col].min():.6f}, {dataset[col].max():.6f}]")

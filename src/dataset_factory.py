@@ -34,10 +34,12 @@ class DatasetFactory:
         self.lookback_15m = lookback_15m
         self.volatility_window = volatility_window
         self.dataset_rows = []
+        self._market_indices = {}  # Maps (hour_start, strike_price) to list of row indices
         
     def reset(self):
         """Reset the dataset collector."""
         self.dataset_rows = []
+        self._market_indices = {}
     
     def collect_minute_data(self,
                            timestamp: pd.Timestamp,
@@ -85,6 +87,13 @@ class DatasetFactory:
             'label': None  # Will be filled at resolution
         }
         
+        # Track the row index for this market for O(1) label updates
+        market_key = (hour_start, strike_price)
+        row_index = len(self.dataset_rows)
+        if market_key not in self._market_indices:
+            self._market_indices[market_key] = []
+        self._market_indices[market_key].append(row_index)
+        
         self.dataset_rows.append(row)
     
     def add_labels(self, final_btc_price: float, strike_price: float,
@@ -100,19 +109,19 @@ class DatasetFactory:
         # Label is 1 if BTC >= strike (YES wins), 0 otherwise (NO wins)
         label = 1 if final_btc_price >= strike_price else 0
         
-        # Apply label to all rows from this specific market
-        for row in self.dataset_rows:
-            if (row['strike_price'] == strike_price and 
-                row['hour_start'] == hour_start and 
-                row['label'] is None):
-                row['label'] = label
+        # Use index mapping for O(1) label updates instead of O(n) iteration
+        market_key = (hour_start, strike_price)
+        if market_key in self._market_indices:
+            for row_idx in self._market_indices[market_key]:
+                self.dataset_rows[row_idx]['label'] = label
     
     def to_dataframe(self) -> pd.DataFrame:
         """
         Convert collected data to a pandas DataFrame.
         
         Returns:
-            DataFrame with ML-ready features and labels
+            DataFrame with ML-ready features and labels.
+            Note: timestamp and hour_start are excluded to prevent data leakage.
         """
         if not self.dataset_rows:
             return pd.DataFrame()
@@ -122,9 +131,13 @@ class DatasetFactory:
         # Drop rows with missing labels or features
         df = df.dropna()
         
+        # Drop timestamp and hour_start to prevent data leakage in ML models
+        # These columns contain temporal information that should not be used as features
+        columns_to_drop = ['timestamp', 'hour_start']
+        df = df.drop(columns=[col for col in columns_to_drop if col in df.columns])
+        
         # Reorder columns to match example schema
         columns_order = [
-            'timestamp',
             'btc_price',
             'btc_return_5m',
             'btc_return_15m',

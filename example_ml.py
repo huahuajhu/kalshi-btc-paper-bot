@@ -21,6 +21,9 @@ def load_and_prepare_data(dataset_path='data/ml_dataset.csv'):
     Returns:
         X: Features DataFrame
         y: Labels Series
+        
+    Raises:
+        ValueError: If required columns are missing from the dataset
     """
     # Load dataset
     df = pd.read_csv(dataset_path)
@@ -38,6 +41,14 @@ def load_and_prepare_data(dataset_path='data/ml_dataset.csv'):
         'volatility'
     ]
     
+    # Validate that required columns exist
+    missing_features = [col for col in feature_columns if col not in df.columns]
+    if missing_features:
+        raise ValueError(f"Missing required feature columns: {missing_features}")
+    
+    if 'label' not in df.columns:
+        raise ValueError("Missing required 'label' column")
+    
     # Prepare features and labels
     X = df[feature_columns]
     y = df['label']
@@ -49,6 +60,11 @@ def train_simple_model(X, y):
     """
     Train a simple Random Forest classifier.
     
+    Note: This example uses random train/test split for simplicity. For time-series
+    data like this, temporal splitting (training on earlier dates, testing on later
+    dates) would be more appropriate to avoid data leakage where the model learns
+    from future data to predict past outcomes.
+    
     Args:
         X: Features
         y: Labels
@@ -58,13 +74,15 @@ def train_simple_model(X, y):
         X_test: Test features
         y_test: Test labels
     """
-    # Split data
+    # Split data - using random split for demonstration
+    # For production use, consider temporal split: train on early data, test on later data
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )
     
     print(f"\nTraining set: {len(X_train)} samples")
     print(f"Test set: {len(X_test)} samples")
+    print(f"Note: Using random split. Consider temporal split for production.")
     
     # Train model
     model = RandomForestClassifier(n_estimators=100, random_state=42)
@@ -90,9 +108,17 @@ def evaluate_model(model, X_test, y_test):
     
     print(f"\nModel Performance:")
     print(f"  Accuracy: {accuracy:.2%}")
-    print("\nClassification Report:")
-    print(classification_report(y_test, y_pred, 
-                                target_names=['NO wins', 'YES wins']))
+    
+    # Get unique classes in the data
+    unique_classes = sorted(set(y_test) | set(y_pred))
+    
+    if len(unique_classes) > 1:
+        print("\nClassification Report:")
+        target_names = ['NO wins', 'YES wins'] if len(unique_classes) == 2 else None
+        print(classification_report(y_test, y_pred, target_names=target_names))
+    else:
+        print(f"\nNote: Only one class ({unique_classes[0]}) present in test set.")
+        print("Classification report not meaningful with single class.")
     
     # Feature importance
     feature_names = X_test.columns
@@ -134,6 +160,9 @@ def main():
     except FileNotFoundError:
         print("\nError: Dataset file not found!")
         print("Please run 'python generate_dataset.py' first to create the dataset.")
+    except ValueError as e:
+        print(f"\nError: {e}")
+        print("Please ensure the dataset was generated correctly.")
     except Exception as e:
         print(f"\nError: {e}")
         import traceback

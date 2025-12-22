@@ -249,7 +249,21 @@ def append_to_csv(new_data: pd.DataFrame, filepath: str, key_columns: list):
         # Combine and remove duplicates
         combined = pd.concat([existing_data, new_data], ignore_index=True)
         combined = combined.drop_duplicates(subset=key_columns, keep='last')
+
+        # Sort using proper datetime types for time-based key columns to avoid
+        # fragile lexicographic ordering on timestamp strings.
+        datetime_key_cols = [
+            col for col in ['timestamp', 'hour_start']
+            if col in key_columns and col in combined.columns
+        ]
+        for col in datetime_key_cols:
+            combined[col] = pd.to_datetime(combined[col], errors='coerce')
+
         combined = combined.sort_values(key_columns)
+
+        # Convert back to the original string format for CSV output
+        for col in datetime_key_cols:
+            combined[col] = combined[col].dt.strftime('%Y-%m-%d %H:%M:%S')
         
         # Save back
         combined.to_csv(filepath, index=False)

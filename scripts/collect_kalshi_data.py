@@ -101,6 +101,8 @@ def calculate_contract_prices(btc_price: float, strike_price: float,
     Returns:
         Tuple of (yes_price, no_price)
     """
+    if strike_price <= 0:
+        raise ValueError("strike_price must be positive")
     # Calculate distance from strike as percentage
     distance_pct = (btc_price - strike_price) / strike_price
     

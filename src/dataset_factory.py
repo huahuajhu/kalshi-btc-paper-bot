@@ -230,5 +230,5 @@ class DatasetFactory:
         if not returns:
             return None
         
-        # Return standard deviation of returns
-        return np.std(returns)
+        # Return sample standard deviation of returns (unbiased estimator)
+        return np.std(returns, ddof=1)
